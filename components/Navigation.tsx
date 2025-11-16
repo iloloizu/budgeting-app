@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTheme } from './ThemeProvider'
@@ -19,13 +19,7 @@ export default function Navigation({ selectedUserId }: { selectedUserId: string 
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  useEffect(() => {
-    if (selectedUserId) {
-      fetchUser()
-    }
-  }, [selectedUserId])
-
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     try {
       const res = await fetch('/api/users')
       if (res.ok) {
@@ -36,7 +30,13 @@ export default function Navigation({ selectedUserId }: { selectedUserId: string 
     } catch (error) {
       console.error('Error fetching user:', error)
     }
-  }
+  }, [selectedUserId])
+
+  useEffect(() => {
+    if (selectedUserId) {
+      fetchUser()
+    }
+  }, [selectedUserId, fetchUser])
 
   const handleLogout = () => {
     localStorage.removeItem('selectedUserId')

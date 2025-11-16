@@ -25,21 +25,22 @@ export default function TransactionsPage() {
   const [sortField, setSortField] = useState<'date' | 'description' | 'amount' | 'type' | 'category'>('date')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
-  useEffect(() => {
-    const stored = localStorage.getItem('selectedUserId')
-    if (stored) {
-      setSelectedUserId(stored)
-      fetchData(stored)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (selectedUserId) {
-      fetchTransactions()
+  const fetchTransactions = useCallback(async () => {
+    if (!selectedUserId) return
+    try {
+      const res = await fetch(
+        `/api/transactions?userId=${selectedUserId}&year=${year}&month=${month}`
+      )
+      if (res.ok) {
+        const data = await res.json()
+        setTransactions(data)
+      }
+    } catch (error) {
+      console.error('Error fetching transactions:', error)
     }
   }, [selectedUserId, year, month])
 
-  const fetchData = async (userId: string) => {
+  const fetchData = useCallback(async (userId: string) => {
     setLoading(true)
     try {
       const [incomeRes, categoriesRes] = await Promise.all([
@@ -57,28 +58,29 @@ export default function TransactionsPage() {
         setExpenseCategories(categories)
       }
 
-      await fetchTransactions()
+      if (userId === selectedUserId) {
+        await fetchTransactions()
+      }
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedUserId, fetchTransactions])
 
-  const fetchTransactions = async () => {
-    if (!selectedUserId) return
-    try {
-      const res = await fetch(
-        `/api/transactions?userId=${selectedUserId}&year=${year}&month=${month}`
-      )
-      if (res.ok) {
-        const data = await res.json()
-        setTransactions(data)
-      }
-    } catch (error) {
-      console.error('Error fetching transactions:', error)
+  useEffect(() => {
+    const stored = localStorage.getItem('selectedUserId')
+    if (stored) {
+      setSelectedUserId(stored)
+      fetchData(stored)
     }
-  }
+  }, [fetchData])
+
+  useEffect(() => {
+    if (selectedUserId) {
+      fetchTransactions()
+    }
+  }, [selectedUserId, year, month, fetchTransactions])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
