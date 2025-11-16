@@ -49,22 +49,15 @@ Create a `.env` file in the root directory:
 ```env
 DATABASE_URL="file:./prisma/dev.db"
 ANTHROPIC_API_KEY="your-anthropic-api-key-here"
-<<<<<<< Updated upstream
-TELLER_API_KEY="your-teller-api-key-here"
-=======
 NEXT_PUBLIC_TELLER_APPLICATION_ID="app_xxxxxx"
 NEXT_PUBLIC_TELLER_ENVIRONMENT="sandbox"
 TELLER_CERT_PATH="./teller/cert.pem"
 TELLER_KEY_PATH="./teller/key.pem"
 TELLER_TOKEN_SIGNING_KEY="your-base64-token-signing-key-here"
->>>>>>> Stashed changes
 ```
 
 Note: 
 - The `ANTHROPIC_API_KEY` is optional. If not provided, the LLM assistant will show a message indicating the API key is not configured.
-<<<<<<< Updated upstream
-- The `TELLER_API_KEY` is optional. If not provided, the Net Worth page will show a message indicating the API key is not configured.
-=======
 - The `NEXT_PUBLIC_TELLER_APPLICATION_ID` is required for Teller Connect. Get this from your Teller Dashboard.
 - The `NEXT_PUBLIC_TELLER_ENVIRONMENT` can be "sandbox", "development", or "production" (defaults to "sandbox").
 - The `TELLER_CERT_PATH` and `TELLER_KEY_PATH` are **required** for Teller API calls in development and production environments. These are client certificates for mTLS authentication. Get these from your Teller Dashboard:
@@ -75,7 +68,6 @@ Note:
   5. Update the paths in your `.env` file
   6. **Important**: Add `teller/*.pem` to your `.gitignore` to never commit these files
 - The `TELLER_TOKEN_SIGNING_KEY` is **optional but recommended** for production. It's used to verify the authenticity of enrollment data from Teller Connect. Without it, the app will still work but will skip signature verification (with a warning). Get this from your Teller Dashboard under Application settings.
->>>>>>> Stashed changes
 
 4. Initialize the database:
 
