@@ -4,6 +4,15 @@ import { useEffect, useState, useMemo } from 'react'
 import UserSelector from '@/components/UserSelector'
 import Navigation from '@/components/Navigation'
 import { formatCurrency } from '@/lib/format'
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts'
 
 export default function Home() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
@@ -121,6 +130,8 @@ function DashboardContent({ userId }: { userId: string }) {
 
   return (
     <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+      <NetWorthChart userId={userId} />
+      
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         <div className="border border-black dark:border-gray-700 p-4 sm:p-6 bg-white dark:bg-gray-800">
           <h3 className="text-xs sm:text-sm font-medium text-black dark:text-white mb-2">
@@ -177,6 +188,84 @@ function DashboardContent({ userId }: { userId: string }) {
             Planned: ${formatCurrency(plannedSavings)}
           </p>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function NetWorthChart({ userId }: { userId: string }) {
+  const [netWorthData, setNetWorthData] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchNetWorth()
+  }, [userId])
+
+  const fetchNetWorth = async () => {
+    try {
+      const res = await fetch(`/api/net-worth/snapshot?userId=${userId}&limit=12`)
+      if (res.ok) {
+        const data = await res.json()
+        setNetWorthData(data.reverse()) // Reverse to show oldest first
+      }
+    } catch (error) {
+      console.error('Error fetching net worth:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const chartData = useMemo(() => {
+    return netWorthData.map((snapshot) => ({
+      month: `${new Date(snapshot.year, snapshot.month - 1).toLocaleString('default', { month: 'short' })} ${snapshot.year}`,
+      netWorth: snapshot.netWorth,
+    }))
+  }, [netWorthData])
+
+  if (loading || chartData.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="border border-black dark:border-gray-700 p-4 sm:p-6 bg-white dark:bg-gray-800">
+      <h2 className="text-lg sm:text-xl font-bold text-black dark:text-white mb-4">
+        Net Worth Trend
+      </h2>
+      <div className="h-64 sm:h-80">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#ccc" />
+            <XAxis 
+              dataKey="month" 
+              stroke="#666"
+              tick={{ fill: '#666', fontSize: 12 }}
+              angle={-45}
+              textAnchor="end"
+              height={60}
+            />
+            <YAxis 
+              stroke="#666"
+              tick={{ fill: '#666' }}
+              tickFormatter={(value) => `$${formatCurrency(value)}`}
+            />
+            <Tooltip 
+              formatter={(value: any) => `$${formatCurrency(Number(value))}`}
+              contentStyle={{
+                backgroundColor: 'white',
+                border: '1px solid black',
+                borderRadius: '4px',
+                padding: '8px',
+              }}
+            />
+            <Line 
+              type="monotone" 
+              dataKey="netWorth" 
+              stroke="#2563eb" 
+              strokeWidth={2}
+              dot={{ fill: '#2563eb', r: 4 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
       </div>
     </div>
   )
