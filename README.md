@@ -49,9 +49,12 @@ Create a `.env` file in the root directory:
 ```env
 DATABASE_URL="file:./prisma/dev.db"
 ANTHROPIC_API_KEY="your-anthropic-api-key-here"
+TELLER_API_KEY="your-teller-api-key-here"
 ```
 
-Note: The `ANTHROPIC_API_KEY` is optional. If not provided, the LLM assistant will show a message indicating the API key is not configured.
+Note: 
+- The `ANTHROPIC_API_KEY` is optional. If not provided, the LLM assistant will show a message indicating the API key is not configured.
+- The `TELLER_API_KEY` is optional. If not provided, the Net Worth page will show a message indicating the API key is not configured.
 
 4. Initialize the database:
 
