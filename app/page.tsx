@@ -128,8 +128,18 @@ function DashboardContent({ userId }: { userId: string }) {
     return <div className="text-black dark:text-white">Loading...</div>
   }
 
+  // Format month and year for display
+  const monthName = new Date(currentYear, currentMonth - 1).toLocaleString('default', { month: 'long' })
+  const yearDisplay = currentYear
+
   return (
     <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+      <div className="mb-2 sm:mb-4">
+        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
+          Showing data for <span className="font-semibold text-black dark:text-white">{monthName} {yearDisplay}</span>
+        </p>
+      </div>
+      
       <NetWorthChart userId={userId} />
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">

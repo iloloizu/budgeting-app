@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import Anthropic from '@anthropic-ai/sdk'
 
+// Server-side only - API key never exposed to client
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || '',
 })
@@ -18,6 +19,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Server-side only - API key never exposed to client
     if (!process.env.ANTHROPIC_API_KEY) {
       return NextResponse.json({
         response:
@@ -25,6 +27,11 @@ export async function POST(request: NextRequest) {
         disclaimer:
           'This is guidance from an AI assistant, not financial advice.',
       })
+    }
+
+    // Sanitize: Ensure API key is never logged or exposed
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Anthropic API: Using configured API key (key not logged for security)')
     }
 
     // Gather user's financial data
