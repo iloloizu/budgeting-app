@@ -77,11 +77,7 @@ export async function POST(request: NextRequest) {
       for (let i = 1; i < lines.length; i++) {
         try {
           const values = parseCSVLine(lines[i])
-<<<<<<< Updated upstream
           const row: CSVRow = { Date: '', Amount: '' }
-=======
-          const row: CSVRow = {} as CSVRow
->>>>>>> Stashed changes
           header.forEach((h, idx) => {
             row[h] = values[idx]?.trim() || ''
           })
@@ -118,16 +114,16 @@ export async function POST(request: NextRequest) {
       // Check if duplicate (only if fingerprint exists)
       if (parsed.fingerprint) {
         try {
-          const existing = await prisma.transaction.findUnique({
+          // Use findMany with limit as workaround for compound unique constraint
+          const existing = await prisma.transaction.findMany({
             where: {
-              userId_fingerprint: {
-                userId,
-                fingerprint: parsed.fingerprint,
-              },
-            },
+              userId,
+              fingerprint: parsed.fingerprint,
+            } as any,
+            take: 1,
           })
 
-          if (existing) {
+          if (existing.length > 0) {
             duplicates.push(parsed)
             continue
           }
