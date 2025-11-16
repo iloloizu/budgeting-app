@@ -21,6 +21,13 @@ import {
 import { PASTEL_PALETTE, getLightTint } from '@/constants/colors'
 import { formatCurrency } from '@/lib/format'
 
+interface PieDataEntry {
+  name: string
+  value: number
+  color: string
+  categoryId?: string
+}
+
 export default function ReportsPage() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [savingsProjection, setSavingsProjection] = useState<any[]>([])
@@ -508,7 +515,7 @@ export default function ReportsPage() {
                       fill="#8884d8"
                       dataKey="value"
                     >
-                      {pieData.map((entry, index) => (
+                      {pieData.map((entry: PieDataEntry, index: number) => (
                         <Cell
                           key={`cell-${index}`}
                           fill={entry.color || PASTEL_PALETTE[index % PASTEL_PALETTE.length]}
@@ -531,7 +538,7 @@ export default function ReportsPage() {
                     <div className="absolute top-2 right-2 sm:top-4 sm:right-4 border border-black dark:border-gray-700 bg-white dark:bg-gray-800 p-2 sm:p-3 max-h-48 sm:max-h-80 overflow-y-auto text-xs sm:text-sm">
                       <div className="text-xs font-medium text-black dark:text-white mb-2">Categories</div>
                       <div className="space-y-1">
-                        {pieData.map((entry, index) => (
+                        {pieData.map((entry: PieDataEntry, index: number) => (
                           <div
                             key={index}
                             className="flex items-center gap-2 text-xs"
