@@ -15,11 +15,21 @@ if (process.env.NODE_ENV !== 'production') {
     globalForPrisma.prisma.$disconnect().catch(() => {})
   }
   // Always create a new instance in development
-  prisma = new PrismaClient()
+  prisma = new PrismaClient({
+    log: ['error', 'warn'],
+  })
   globalForPrisma.prisma = prisma
 } else {
   // In production, reuse the global instance
-  prisma = globalForPrisma.prisma ?? new PrismaClient()
+  // For serverless environments (like Netlify), we need to handle connections carefully
+  prisma = globalForPrisma.prisma ?? new PrismaClient({
+    log: ['error', 'warn'],
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL,
+      },
+    },
+  })
   if (!globalForPrisma.prisma) {
     globalForPrisma.prisma = prisma
   }
