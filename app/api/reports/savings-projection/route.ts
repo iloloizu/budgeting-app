@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
     const currentYear = now.getFullYear()
     const currentMonth = now.getMonth() + 1
 
-    const projection = []
-
+    // Build array of year/month pairs for the next 12 months
+    const monthKeys: Array<{ year: number; month: number }> = []
     for (let i = 0; i < 12; i++) {
       let year = currentYear
       let month = currentMonth + i
@@ -28,17 +28,30 @@ export async function GET(request: NextRequest) {
         year = year + 1
       }
 
-      const budget = await prisma.monthlyBudget.findUnique({
-        where: {
-          userId_year_month: {
-            userId,
-            year,
-            month,
-          },
-        },
-      })
+      monthKeys.push({ year, month })
+    }
 
-      projection.push({
+    // Fetch all budgets in a single query using OR conditions
+    const budgets = await prisma.monthlyBudget.findMany({
+      where: {
+        userId,
+        OR: monthKeys.map(({ year, month }) => ({
+          year,
+          month,
+        })),
+      },
+    })
+
+    // Create a map for O(1) lookup
+    const budgetMap = new Map<string, typeof budgets[0]>()
+    budgets.forEach((budget) => {
+      budgetMap.set(`${budget.year}-${budget.month}`, budget)
+    })
+
+    // Build projection array with O(n) complexity
+    const projection = monthKeys.map(({ year, month }) => {
+      const budget = budgetMap.get(`${year}-${month}`)
+      return {
         year,
         month,
         monthName: new Date(year, month - 1).toLocaleString('default', {
@@ -47,8 +60,8 @@ export async function GET(request: NextRequest) {
         plannedIncome: budget?.totalPlannedIncome || 0,
         plannedExpenses: budget?.totalPlannedExpenses || 0,
         plannedSavings: budget?.totalPlannedSavings || 0,
-      })
-    }
+      }
+    })
 
     return NextResponse.json(projection)
   } catch (error) {

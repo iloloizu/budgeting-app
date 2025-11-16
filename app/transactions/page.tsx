@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import Navigation from '@/components/Navigation'
 import { getLightTint } from '@/constants/colors'
+import { formatCurrency } from '@/lib/format'
 
 export default function TransactionsPage() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
@@ -146,16 +147,18 @@ export default function TransactionsPage() {
     }
   }
 
-  const handleSort = (field: 'date' | 'description' | 'amount' | 'type' | 'category') => {
+  const handleSort = useCallback((field: 'date' | 'description' | 'amount' | 'type' | 'category') => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
     } else {
       setSortField(field)
       setSortDirection('asc')
     }
-  }
+  }, [sortField, sortDirection])
 
-  const sortedTransactions = [...transactions].sort((a, b) => {
+  // Memoize sorted transactions to avoid re-sorting on every render
+  const sortedTransactions = useMemo(() => {
+    return [...transactions].sort((a, b) => {
     let aValue: any
     let bValue: any
 
@@ -195,18 +198,25 @@ export default function TransactionsPage() {
     if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1
     if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1
     return 0
-  })
+    })
+  }, [transactions, sortField, sortDirection])
 
-  const getCategoryColor = (transaction: any): string => {
+  // Create a map for O(1) category lookup instead of O(n) find
+  const categoryMap = useMemo(() => {
+    const map = new Map<string, { colorHex?: string }>()
+    expenseCategories.forEach((cat) => {
+      map.set(cat.id, { colorHex: cat.colorHex })
+    })
+    return map
+  }, [expenseCategories])
+
+  const getCategoryColor = useCallback((transaction: any): string => {
     if (transaction.type === 'expense' && transaction.expenseCategory) {
-      const category = expenseCategories.find(
-        (c) => c.id === transaction.expenseCategory.id
-      )
+      const category = categoryMap.get(transaction.expenseCategory.id)
       return category?.colorHex || '#FDE2E4'
     }
-    // Income sources don't have colors yet, but we could add them later
     return '#FFFFFF'
-  }
+  }, [categoryMap])
 
   useEffect(() => {
     const stored = localStorage.getItem('selectedUserId')
@@ -239,39 +249,39 @@ export default function TransactionsPage() {
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
       <Navigation selectedUserId={selectedUserId} />
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-4xl font-bold text-black dark:text-white">Transactions</h1>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6 lg:mb-8">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-black dark:text-white">Transactions</h1>
           {!showForm && (
             <button
               onClick={() => setShowForm(true)}
-              className="border border-black dark:border-gray-700 px-4 py-2 text-black dark:text-white bg-white dark:bg-gray-800 hover:bg-black dark:hover:bg-gray-700 hover:text-white transition-colors"
+              className="w-full sm:w-auto border border-black dark:border-gray-700 px-4 py-2 text-sm sm:text-base text-black dark:text-white bg-white dark:bg-gray-800 hover:bg-black dark:hover:bg-gray-700 hover:text-white transition-colors"
             >
               Add Transaction
             </button>
           )}
         </div>
 
-        <div className="mb-6 flex gap-4">
-          <div>
-            <label className="block text-sm font-medium text-black dark:text-white mb-1">
+        <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row gap-4">
+          <div className="flex-1 sm:flex-initial">
+            <label className="block text-xs sm:text-sm font-medium text-black dark:text-white mb-1">
               Year
             </label>
             <input
               type="number"
               value={year}
               onChange={(e) => setYear(parseInt(e.target.value))}
-              className="border border-black dark:border-gray-700 px-3 py-2 text-black dark:text-white bg-white dark:bg-gray-900"
+              className="w-full border border-black dark:border-gray-700 px-3 py-2 text-sm sm:text-base text-black dark:text-white bg-white dark:bg-gray-900"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-black dark:text-white mb-1">
+          <div className="flex-1 sm:flex-initial">
+            <label className="block text-xs sm:text-sm font-medium text-black dark:text-white mb-1">
               Month
             </label>
             <select
               value={month}
               onChange={(e) => setMonth(parseInt(e.target.value))}
-              className="border border-black dark:border-gray-700 px-3 py-2 text-black dark:text-white bg-white dark:bg-gray-900"
+              className="w-full border border-black dark:border-gray-700 px-3 py-2 text-sm sm:text-base text-black dark:text-white bg-white dark:bg-gray-900"
             >
               {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                 <option key={m} value={m}>
@@ -285,8 +295,8 @@ export default function TransactionsPage() {
         </div>
 
         {showForm && (
-          <form onSubmit={handleSubmit} className="mb-8 border border-black dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
-            <div className="grid grid-cols-2 gap-4 mb-4">
+          <form onSubmit={handleSubmit} className="mb-4 sm:mb-6 lg:mb-8 border border-black dark:border-gray-700 p-4 sm:p-6 bg-white dark:bg-gray-800">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-black dark:text-white mb-1">
                   Date
@@ -395,10 +405,10 @@ export default function TransactionsPage() {
                 </div>
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <button
                 type="submit"
-                className="border border-black dark:border-gray-700 px-4 py-2 text-black dark:text-white bg-white dark:bg-gray-800 hover:bg-black dark:hover:bg-gray-700 hover:text-white transition-colors"
+                className="w-full sm:w-auto border border-black dark:border-gray-700 px-4 py-2 text-sm sm:text-base text-black dark:text-white bg-white dark:bg-gray-800 hover:bg-black dark:hover:bg-gray-700 hover:text-white transition-colors"
               >
                 Add Transaction
               </button>
@@ -415,7 +425,7 @@ export default function TransactionsPage() {
                     expenseCategoryId: '',
                   })
                 }}
-                className="border border-black dark:border-gray-700 px-4 py-2 text-black dark:text-white bg-white dark:bg-gray-800 hover:bg-black dark:hover:bg-gray-700 hover:text-white transition-colors"
+                className="w-full sm:w-auto border border-black dark:border-gray-700 px-4 py-2 text-sm sm:text-base text-black dark:text-white bg-white dark:bg-gray-800 hover:bg-black dark:hover:bg-gray-700 hover:text-white transition-colors"
               >
                 Cancel
               </button>
@@ -423,7 +433,89 @@ export default function TransactionsPage() {
           </form>
         )}
 
-        <div className="border border-black dark:border-gray-700 bg-white dark:bg-gray-800">
+        {/* Mobile Card View */}
+        <div className="md:hidden space-y-3">
+          {sortedTransactions.map((transaction) => {
+            const categoryColor = getCategoryColor(transaction)
+            const rowTint = getLightTint(categoryColor, 0.45)
+
+            return (
+              <div
+                key={transaction.id}
+                className="border border-black dark:border-gray-700 p-4 bg-white dark:bg-gray-800"
+                style={{ backgroundColor: rowTint }}
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-black dark:text-white">
+                      {transaction.description}
+                    </div>
+                    <div className="text-xs text-black dark:text-gray-400 mt-1">
+                      {new Date(transaction.date).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <div className="text-right ml-2">
+                    <div className="text-lg font-semibold text-black dark:text-white">
+                      ${formatCurrency(transaction.amount)}
+                    </div>
+                    <div className="text-xs text-black dark:text-gray-400 capitalize">
+                      {transaction.type}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  {transaction.type === 'income' ? (
+                    <select
+                      value={transaction.incomeSourceId || ''}
+                      onChange={(e) =>
+                        handleCategoryChange(transaction.id, e.target.value, 'income')
+                      }
+                      className="w-full border border-black dark:border-gray-700 px-2 py-2 text-sm text-black dark:text-white bg-white dark:bg-gray-900"
+                    >
+                      <option value="">Select source</option>
+                      {incomeSources.map((source) => (
+                        <option key={source.id} value={source.id}>
+                          {source.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <select
+                      value={transaction.expenseCategoryId || ''}
+                      onChange={(e) =>
+                        handleCategoryChange(transaction.id, e.target.value, 'expense')
+                      }
+                      className="w-full border border-black dark:border-gray-700 px-2 py-2 text-sm text-black dark:text-white bg-white dark:bg-gray-900"
+                    >
+                      <option value="">Select category</option>
+                      {expenseCategories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                <div className="mt-2">
+                  <button
+                    onClick={() => handleDelete(transaction.id)}
+                    className="text-sm text-red-600 dark:text-red-400 hover:underline"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+          {sortedTransactions.length === 0 && (
+            <div className="border border-black dark:border-gray-700 p-4 text-center text-sm text-black dark:text-white bg-white dark:bg-gray-800">
+              No transactions found for this period
+            </div>
+          )}
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="hidden md:block border border-black dark:border-gray-700 bg-white dark:bg-gray-800">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-black dark:border-gray-700">
@@ -498,10 +590,10 @@ export default function TransactionsPage() {
                     className="border-b border-black dark:border-gray-700"
                     style={{ backgroundColor: rowTint }}
                   >
-                  <td className="p-3 text-black dark:text-white">
+                  <td className="p-3 text-sm text-black dark:text-white">
                     {new Date(transaction.date).toLocaleDateString()}
                   </td>
-                  <td className="p-3 text-black dark:text-white">{transaction.description}</td>
+                  <td className="p-3 text-sm text-black dark:text-white">{transaction.description}</td>
                   <td className="p-3">
                     {transaction.type === 'income' ? (
                       <select
@@ -509,7 +601,7 @@ export default function TransactionsPage() {
                         onChange={(e) =>
                           handleCategoryChange(transaction.id, e.target.value, 'income')
                         }
-                        className="w-full border border-black px-2 py-1 text-black bg-white"
+                        className="w-full border border-black dark:border-gray-700 px-2 py-1 text-sm text-black dark:text-white bg-white dark:bg-gray-900"
                       >
                         <option value="">Select source</option>
                         {incomeSources.map((source) => (
@@ -524,7 +616,7 @@ export default function TransactionsPage() {
                         onChange={(e) =>
                           handleCategoryChange(transaction.id, e.target.value, 'expense')
                         }
-                        className="w-full border border-black px-2 py-1 text-black bg-white"
+                        className="w-full border border-black dark:border-gray-700 px-2 py-1 text-sm text-black dark:text-white bg-white dark:bg-gray-900"
                       >
                         <option value="">Select category</option>
                         {expenseCategories.map((category) => (
@@ -535,16 +627,16 @@ export default function TransactionsPage() {
                       </select>
                     )}
                   </td>
-                  <td className="p-3 text-right text-black dark:text-white">
-                    ${transaction.amount.toFixed(2)}
+                  <td className="p-3 text-sm text-right text-black dark:text-white">
+                    ${formatCurrency(transaction.amount)}
                   </td>
-                  <td className="p-3 text-center text-black dark:text-white capitalize">
+                  <td className="p-3 text-sm text-center text-black dark:text-white capitalize">
                     {transaction.type}
                   </td>
                   <td className="p-3 text-center">
                     <button
                       onClick={() => handleDelete(transaction.id)}
-                      className="text-black dark:text-white hover:underline"
+                      className="text-sm text-black dark:text-white hover:underline"
                     >
                       Delete
                     </button>
@@ -554,7 +646,7 @@ export default function TransactionsPage() {
                 })}
                 {sortedTransactions.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-3 text-center text-black dark:text-white">
+                  <td colSpan={6} className="p-3 text-center text-sm text-black dark:text-white">
                     No transactions found for this period
                   </td>
                 </tr>

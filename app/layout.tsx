@@ -3,6 +3,7 @@ import { Libre_Caslon_Text } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import Footer from "@/components/Footer";
+import AuthGuard from "@/components/AuthGuard";
 
 const caslon = Libre_Caslon_Text({
   weight: ['400', '700'],
@@ -12,7 +13,7 @@ const caslon = Libre_Caslon_Text({
 });
 
 export const metadata: Metadata = {
-  title: "Wealth Management",
+  title: "Fortis Wealth",
   description: "Personal budgeting and wealth management application",
 };
 
@@ -46,10 +47,12 @@ export default function RootLayout({
       </head>
       <body className="flex flex-col min-h-screen">
         <ThemeProvider>
-          <div className="flex-1">
-            {children}
-          </div>
-          <Footer />
+          <AuthGuard>
+            <div className="flex-1">
+              {children}
+            </div>
+            <Footer />
+          </AuthGuard>
         </ThemeProvider>
       </body>
     </html>

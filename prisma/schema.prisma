@@ -103,6 +103,9 @@ model Transaction {
 
   @@unique([userId, fingerprint])
   @@index([userId, date])
+  @@index([userId, type])
+  @@index([userId, expenseCategoryId])
+  @@index([expenseCategoryId])
 }
 
 model CategorizationRule {
@@ -121,5 +124,6 @@ model CategorizationRule {
   incomeSource   IncomeSource?   @relation(fields: [incomeSourceId], references: [id], onDelete: Cascade)
 
   @@index([userId, pattern])
+  @@index([userId, appliesTo])
 }
 

@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
     const startDate = new Date(parseInt(year), 0, 1)
     const endDate = new Date(parseInt(year), 11, 31, 23, 59, 59)
 
+    // Use aggregation for better performance - O(n) single pass
     const transactions = await prisma.transaction.findMany({
       where: {
         userId,
@@ -26,16 +27,25 @@ export async function GET(request: NextRequest) {
           gte: startDate,
           lte: endDate,
         },
+        expenseCategoryId: {
+          not: null,
+        },
       },
-      include: {
-        expenseCategory: true,
+      select: {
+        amount: true,
+        expenseCategory: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     })
 
-    // Group by category
+    // Group by category in a single O(n) pass
     const categoryTotals: Record<string, { name: string; total: number }> = {}
 
-    transactions.forEach((transaction) => {
+    for (const transaction of transactions) {
       if (transaction.expenseCategory) {
         const categoryId = transaction.expenseCategory.id
         const categoryName = transaction.expenseCategory.name
@@ -47,10 +57,13 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        categoryTotals[categoryId].total = roundCurrency(
-          categoryTotals[categoryId].total + transaction.amount
-        )
+        categoryTotals[categoryId].total += transaction.amount
       }
+    }
+
+    // Round all totals at once
+    Object.keys(categoryTotals).forEach((id) => {
+      categoryTotals[id].total = roundCurrency(categoryTotals[id].total)
     })
 
     const totalExpenses = roundCurrency(

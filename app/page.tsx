@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import UserSelector from '@/components/UserSelector'
 import Navigation from '@/components/Navigation'
+import { formatCurrency } from '@/lib/format'
 
 export default function Home() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
@@ -24,8 +25,8 @@ export default function Home() {
   if (!selectedUserId) {
     return (
       <div className="min-h-screen bg-white dark:bg-gray-900">
-        <div className="max-w-2xl mx-auto px-4 py-16">
-          <h1 className="text-4xl font-bold text-black dark:text-white mb-8">Budget App</h1>
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-black dark:text-white mb-6 sm:mb-8">Fortis Wealth</h1>
           <UserSelector onUserSelect={handleUserSelect} />
         </div>
       </div>
@@ -35,8 +36,8 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
       <Navigation selectedUserId={selectedUserId} />
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold text-black dark:text-white mb-8">Dashboard</h1>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-black dark:text-white mb-4 sm:mb-6 lg:mb-8">Dashboard</h1>
         <DashboardContent userId={selectedUserId} />
       </div>
     </div>
@@ -51,8 +52,10 @@ function DashboardContent({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchBudget()
-    fetchTransactions()
+    if (userId) {
+      fetchBudget()
+      fetchTransactions()
+    }
   }, [userId, currentMonth, currentYear])
 
   const fetchBudget = async () => {
@@ -66,8 +69,6 @@ function DashboardContent({ userId }: { userId: string }) {
       }
     } catch (error) {
       console.error('Error fetching budget:', error)
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -82,55 +83,98 @@ function DashboardContent({ userId }: { userId: string }) {
       }
     } catch (error) {
       console.error('Error fetching transactions:', error)
+    } finally {
+      setLoading(false)
     }
   }
+
+  // Memoize calculations to avoid recalculating on every render
+  const { actualIncome, actualExpenses, actualSavings, plannedSavings, savingsIndicator, expensesIndicator } = useMemo(() => {
+    // Single O(n) pass through transactions
+    let income = 0
+    let expenses = 0
+    
+    for (const t of transactions) {
+      if (t.type === 'income') {
+        income += t.amount
+      } else if (t.type === 'expense') {
+        expenses += t.amount
+      }
+    }
+
+    const savings = income - expenses
+    const planned = budget?.totalPlannedSavings || 0
+
+    return {
+      actualIncome: income,
+      actualExpenses: expenses,
+      actualSavings: savings,
+      plannedSavings: planned,
+      savingsIndicator: savings >= 0 ? 'green' : 'red',
+      expensesIndicator: expenses <= (budget?.totalPlannedExpenses || 0) ? 'green' : 'red',
+    }
+  }, [transactions, budget])
 
   if (loading) {
     return <div className="text-black dark:text-white">Loading...</div>
   }
 
-  const actualIncome = transactions
-    .filter((t) => t.type === 'income')
-    .reduce((sum, t) => sum + t.amount, 0)
-  const actualExpenses = transactions
-    .filter((t) => t.type === 'expense')
-    .reduce((sum, t) => sum + t.amount, 0)
-  const actualSavings = actualIncome - actualExpenses
-
   return (
-    <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="border border-black dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
-          <h3 className="text-sm font-medium text-black dark:text-white mb-2">
-            Planned Income
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="border border-black dark:border-gray-700 p-4 sm:p-6 bg-white dark:bg-gray-800">
+          <h3 className="text-xs sm:text-sm font-medium text-black dark:text-white mb-2">
+            Actual Income
           </h3>
-          <p className="text-3xl font-light text-black dark:text-white">
-            ${budget?.totalPlannedIncome?.toFixed(2) || '0.00'}
+          <p className="text-3xl sm:text-4xl font-light text-black dark:text-white">
+            ${formatCurrency(actualIncome)}
           </p>
-          <p className="text-sm text-black dark:text-gray-300 mt-2">
-            Actual: ${actualIncome.toFixed(2)}
+          <p className="text-xs sm:text-sm text-black dark:text-gray-300 mt-2">
+            Planned: ${formatCurrency(budget?.totalPlannedIncome)}
           </p>
         </div>
-        <div className="border border-black dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
-          <h3 className="text-sm font-medium text-black dark:text-white mb-2">
-            Planned Expenses
+        <div className="border border-black dark:border-gray-700 p-4 sm:p-6 bg-white dark:bg-gray-800">
+          <h3 className="text-xs sm:text-sm font-medium text-black dark:text-white mb-2 flex items-center gap-2">
+            Actual Expenses
+            {expensesIndicator === 'green' ? (
+              <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+              </svg>
+            )}
           </h3>
-          <p className="text-3xl font-light text-black dark:text-white">
-            ${budget?.totalPlannedExpenses?.toFixed(2) || '0.00'}
+          <p className="text-3xl sm:text-4xl font-light text-black dark:text-white">
+            ${formatCurrency(actualExpenses)}
           </p>
-          <p className="text-sm text-black dark:text-gray-300 mt-2">
-            Actual: ${actualExpenses.toFixed(2)}
+          <p className="text-xs sm:text-sm text-black dark:text-gray-300 mt-2">
+            Planned: ${formatCurrency(budget?.totalPlannedExpenses)}
           </p>
         </div>
-        <div className="border border-black dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
-          <h3 className="text-sm font-medium text-black dark:text-white mb-2">
-            Planned Savings
+        <div className="border border-black dark:border-gray-700 p-4 sm:p-6 bg-white dark:bg-gray-800 sm:col-span-2 lg:col-span-1">
+          <h3 className="text-xs sm:text-sm font-medium text-black dark:text-white mb-2 flex items-center gap-2">
+            Actual Savings
+            {savingsIndicator === 'green' ? (
+              <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+              </svg>
+            )}
           </h3>
-          <p className="text-3xl font-light text-black dark:text-white">
-            ${budget?.totalPlannedSavings?.toFixed(2) || '0.00'}
+          <p className={`text-3xl sm:text-4xl font-light ${
+            savingsIndicator === 'green' 
+              ? 'text-green-600 dark:text-green-400' 
+              : 'text-red-600 dark:text-red-400'
+          }`}>
+            ${formatCurrency(actualSavings)}
           </p>
-          <p className="text-sm text-black dark:text-gray-300 mt-2">
-            Actual: ${actualSavings.toFixed(2)}
+          <p className="text-xs sm:text-sm text-black dark:text-gray-300 mt-2">
+            Planned: ${formatCurrency(plannedSavings)}
           </p>
         </div>
       </div>

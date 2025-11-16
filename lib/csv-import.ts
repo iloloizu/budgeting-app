@@ -139,24 +139,23 @@ export async function categorizeTransaction(
   if (parsed.csvCategory && parsed.type === 'expense') {
     // Try to find existing category by name (case-insensitive for SQLite)
     // SQLite doesn't support mode: 'insensitive', so we fetch all and filter
+    // This is optimized to fetch once per categorization call
     const allCategories = await prisma.expenseCategory.findMany({
       where: { userId },
+      select: { id: true, name: true, colorHex: true },
     })
     
+    const categoryNameLower = parsed.csvCategory.toLowerCase()
     let category = allCategories.find(
-      (cat) => cat.name.toLowerCase() === parsed.csvCategory!.toLowerCase()
+      (cat) => cat.name.toLowerCase() === categoryNameLower
     )
 
     // If not found, create it with a color
     if (!category) {
       const isFixed = /rent|insurance|loan|mortgage|subscription/i.test(parsed.csvCategory)
       
-      // Get used colors for this user to assign a new one
-      const allUserCategories = await prisma.expenseCategory.findMany({
-        where: { userId },
-        select: { colorHex: true },
-      })
-      const usedColors = allUserCategories
+      // Reuse the already-fetched categories for color lookup
+      const usedColors = allCategories
         .map((c) => c.colorHex)
         .filter((c): c is string => c !== null && c !== undefined)
       const nextColor = getNextAvailableColor(usedColors)
@@ -168,6 +167,7 @@ export async function categorizeTransaction(
           type: isFixed ? 'fixed' : 'variable',
           colorHex: nextColor,
         },
+        select: { id: true, name: true, colorHex: true },
       })
     }
 
@@ -181,10 +181,11 @@ export async function categorizeTransaction(
         userId,
         name: 'Uncategorized',
       },
+      select: { id: true },
     })
 
     if (!uncategorized) {
-      // Get used colors for this user to assign a new one
+      // Fetch categories once for color lookup
       const allUserCategories = await prisma.expenseCategory.findMany({
         where: { userId },
         select: { colorHex: true },
@@ -201,6 +202,7 @@ export async function categorizeTransaction(
           type: 'variable',
           colorHex: nextColor,
         },
+        select: { id: true },
       })
     }
 

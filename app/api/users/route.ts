@@ -51,3 +51,36 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const userId = searchParams.get('userId')
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User ID is required' },
+        { status: 400 }
+      )
+    }
+
+    // Delete the user and all related data (cascading deletes should handle this)
+    await prisma.user.delete({
+      where: { id: userId },
+    })
+
+    return NextResponse.json({ success: true }, { status: 200 })
+  } catch (error: any) {
+    console.error('Error deleting user:', error)
+    if (error.code === 'P2025') {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      )
+    }
+    return NextResponse.json(
+      { error: 'Failed to delete user' },
+      { status: 500 }
+    )
+  }
+}
+

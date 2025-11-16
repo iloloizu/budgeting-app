@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Navigation from '@/components/Navigation'
+import { formatCurrency } from '@/lib/format'
 
 interface PreviewTransaction {
   date: string
@@ -191,11 +192,11 @@ export default function ImportPage() {
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
       <Navigation selectedUserId={selectedUserId} />
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold text-black dark:text-white mb-8">Import Transactions (CSV)</h1>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-black dark:text-white mb-4 sm:mb-6 lg:mb-8">Import Transactions (CSV)</h1>
         
-        <div className="mb-6 p-4 border border-black dark:border-gray-700 bg-white dark:bg-gray-800">
-          <p className="text-sm text-black dark:text-gray-300">
+        <div className="mb-4 sm:mb-6 p-3 sm:p-4 border border-black dark:border-gray-700 bg-white dark:bg-gray-800">
+          <p className="text-xs sm:text-sm text-black dark:text-gray-300">
             Upload a CSV file exported from Rocket Money to import your transactions. 
             The app will automatically categorize transactions and help you track your spending.
           </p>
@@ -306,38 +307,44 @@ export default function ImportPage() {
                 <p className="text-red-600 dark:text-red-400">Duplicates (will be skipped): {preview.duplicates}</p>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full border border-black dark:border-gray-700">
-                  <thead>
-                    <tr className="border-b border-black dark:border-gray-700">
-                      <th className="text-left p-3 text-sm font-medium text-black dark:text-white">Date</th>
-                      <th className="text-left p-3 text-sm font-medium text-black dark:text-white">Merchant</th>
-                      <th className="text-right p-3 text-sm font-medium text-black dark:text-white">Amount</th>
-                      <th className="text-left p-3 text-sm font-medium text-black dark:text-white">Type</th>
-                      <th className="text-left p-3 text-sm font-medium text-black dark:text-white">Category</th>
-                      <th className="text-left p-3 text-sm font-medium text-black dark:text-white">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {preview.transactions.map((t: PreviewTransaction) => (
-                      <tr
-                        key={t.fingerprint}
-                        className={`border-b border-black dark:border-gray-700 ${
-                          t.isDuplicate ? 'bg-gray-100 dark:bg-gray-700' : ''
-                        }`}
-                      >
-                        <td className="p-3 text-black dark:text-white">
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-3">
+                {preview.transactions.map((t: PreviewTransaction) => (
+                  <div
+                    key={t.fingerprint}
+                    className={`border border-black dark:border-gray-700 p-4 bg-white dark:bg-gray-800 ${
+                      t.isDuplicate ? 'bg-gray-100 dark:bg-gray-700' : ''
+                    }`}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex-1">
+                        <div className="text-base font-medium text-black dark:text-white">
+                          {t.merchantName || t.description}
+                        </div>
+                        <div className="text-xs text-black dark:text-gray-400 mt-1">
                           {new Date(t.date).toLocaleDateString()}
-                        </td>
-                        <td className="p-3 text-black dark:text-white">{t.merchantName || t.description}</td>
-                        <td className="p-3 text-right text-black dark:text-white">
-                          ${t.amount.toFixed(2)}
-                        </td>
-                        <td className="p-3 text-black dark:text-white capitalize">{t.type}</td>
-                        <td className="p-3">
-                          {t.isDuplicate ? (
-                            <span className="text-red-600 dark:text-red-400">Duplicate</span>
-                          ) : t.type === 'expense' ? (
+                        </div>
+                      </div>
+                      <div className="text-right ml-2">
+                        <div className="text-lg font-semibold text-black dark:text-white">
+                          ${formatCurrency(t.amount)}
+                        </div>
+                        <div className="text-xs text-black dark:text-gray-400 capitalize">
+                          {t.type}
+                        </div>
+                      </div>
+                    </div>
+                    {t.isDuplicate ? (
+                      <div className="mt-3">
+                        <span className="text-sm text-red-600 dark:text-red-400 font-medium">Duplicate - Will be skipped</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="mt-3">
+                          <label className="block text-xs text-black dark:text-gray-400 mb-1">
+                            Category
+                          </label>
+                          {t.type === 'expense' ? (
                             <select
                               value={
                                 editingCategory[t.fingerprint] ||
@@ -347,7 +354,7 @@ export default function ImportPage() {
                               onChange={(e) =>
                                 handleCategoryChange(t.fingerprint, e.target.value, 'expense')
                               }
-                              className="w-full border border-black dark:border-gray-700 px-2 py-1 text-black dark:text-white bg-white dark:bg-gray-900"
+                              className="w-full border border-black dark:border-gray-700 px-3 py-2 text-sm text-black dark:text-white bg-white dark:bg-gray-900"
                             >
                               <option value="">Select category</option>
                               {expenseCategories.map((cat) => (
@@ -366,7 +373,90 @@ export default function ImportPage() {
                               onChange={(e) =>
                                 handleCategoryChange(t.fingerprint, e.target.value, 'income')
                               }
-                              className="w-full border border-black dark:border-gray-700 px-2 py-1 text-black dark:text-white bg-white dark:bg-gray-900"
+                              className="w-full border border-black dark:border-gray-700 px-3 py-2 text-sm text-black dark:text-white bg-white dark:bg-gray-900"
+                            >
+                              <option value="">Select source</option>
+                              {incomeSources.map((source) => (
+                                <option key={source.id} value={source.id}>
+                                  {source.name}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+                        {t.ruleUsed && (
+                          <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                            Auto-categorized: {t.ruleUsed}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block border border-black dark:border-gray-700 bg-white dark:bg-gray-800">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-black dark:border-gray-700">
+                      <th className="text-left p-3 text-sm font-medium text-black dark:text-white">Date</th>
+                      <th className="text-left p-3 text-sm font-medium text-black dark:text-white">Merchant</th>
+                      <th className="text-right p-3 text-sm font-medium text-black dark:text-white">Amount</th>
+                      <th className="text-left p-3 text-sm font-medium text-black dark:text-white">Type</th>
+                      <th className="text-left p-3 text-sm font-medium text-black dark:text-white">Category</th>
+                      <th className="text-left p-3 text-sm font-medium text-black dark:text-white">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {preview.transactions.map((t: PreviewTransaction) => (
+                      <tr
+                        key={t.fingerprint}
+                        className={`border-b border-black dark:border-gray-700 ${
+                          t.isDuplicate ? 'bg-gray-100 dark:bg-gray-700' : ''
+                        }`}
+                      >
+                        <td className="p-3 text-sm text-black dark:text-white">
+                          {new Date(t.date).toLocaleDateString()}
+                        </td>
+                        <td className="p-3 text-sm text-black dark:text-white">{t.merchantName || t.description}</td>
+                        <td className="p-3 text-sm text-right text-black dark:text-white">
+                          ${formatCurrency(t.amount)}
+                        </td>
+                        <td className="p-3 text-sm text-black dark:text-white capitalize">{t.type}</td>
+                        <td className="p-3">
+                          {t.isDuplicate ? (
+                            <span className="text-sm text-red-600 dark:text-red-400">Duplicate</span>
+                          ) : t.type === 'expense' ? (
+                            <select
+                              value={
+                                editingCategory[t.fingerprint] ||
+                                t.categoryId ||
+                                ''
+                              }
+                              onChange={(e) =>
+                                handleCategoryChange(t.fingerprint, e.target.value, 'expense')
+                              }
+                              className="w-full border border-black dark:border-gray-700 px-2 py-1 text-sm text-black dark:text-white bg-white dark:bg-gray-900"
+                            >
+                              <option value="">Select category</option>
+                              {expenseCategories.map((cat) => (
+                                <option key={cat.id} value={cat.id}>
+                                  {cat.name}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <select
+                              value={
+                                editingCategory[t.fingerprint] ||
+                                t.incomeSourceId ||
+                                ''
+                              }
+                              onChange={(e) =>
+                                handleCategoryChange(t.fingerprint, e.target.value, 'income')
+                              }
+                              className="w-full border border-black dark:border-gray-700 px-2 py-1 text-sm text-black dark:text-white bg-white dark:bg-gray-900"
                             >
                               <option value="">Select source</option>
                               {incomeSources.map((source) => (
@@ -377,7 +467,7 @@ export default function ImportPage() {
                             </select>
                           )}
                         </td>
-                        <td className="p-3 text-black dark:text-white text-sm">
+                        <td className="p-3 text-sm text-black dark:text-white">
                           {t.ruleUsed && (
                             <span className="text-gray-600 dark:text-gray-400">Auto: {t.ruleUsed}</span>
                           )}

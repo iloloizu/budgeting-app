@@ -1,4 +1,4 @@
-# Budget App
+# Fortis Wealth
 
 A modern budgeting application built with Next.js, React, TypeScript, Prisma, and SQLite. This app helps you track income, expenses, and savings with monthly budgeting capabilities, similar to Rocket Money.
 

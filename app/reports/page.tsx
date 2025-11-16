@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import Navigation from '@/components/Navigation'
 import CategoryColorPicker from '@/components/CategoryColorPicker'
 import {
@@ -19,6 +19,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import { PASTEL_PALETTE, getLightTint } from '@/constants/colors'
+import { formatCurrency } from '@/lib/format'
 
 export default function ReportsPage() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
@@ -152,30 +153,45 @@ export default function ReportsPage() {
     )
   }
 
-  const chartData = savingsProjection.map((item) => ({
-    month: `${item.monthName} ${item.year}`,
-    savings: item.plannedSavings,
-    income: item.plannedIncome,
-    expenses: item.plannedExpenses,
-  }))
+  // Memoize chart data to avoid recalculation
+  const chartData = useMemo(() => {
+    return savingsProjection.map((item) => ({
+      month: `${item.monthName} ${item.year}`,
+      savings: item.plannedSavings,
+      income: item.plannedIncome,
+      expenses: item.plannedExpenses,
+    }))
+  }, [savingsProjection])
 
-  // Recompute pie data whenever categories or categorySpending changes
-  const pieData =
-    categorySpending?.categories.map((cat: any) => {
-      const category = expenseCategories.find((c) => c.name === cat.categoryName)
+  // Create category map for O(1) lookup instead of O(n) find
+  const categoryMap = useMemo(() => {
+    const map = new Map<string, { id: string; colorHex?: string }>()
+    expenseCategories.forEach((cat) => {
+      map.set(cat.name, { id: cat.id, colorHex: cat.colorHex })
+    })
+    return map
+  }, [expenseCategories])
+
+  // Memoize pie data to avoid recalculation
+  const pieData = useMemo(() => {
+    if (!categorySpending?.categories) return []
+    
+    return categorySpending.categories.map((cat: any) => {
+      const category = categoryMap.get(cat.categoryName)
       return {
         name: cat.categoryName,
         value: cat.totalSpent,
         color: category?.colorHex || PASTEL_PALETTE[0],
         categoryId: category?.id,
       }
-    }) || []
+    })
+  }, [categorySpending, categoryMap])
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
       <Navigation selectedUserId={selectedUserId} />
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold text-black dark:text-white mb-8">Reports</h1>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-black dark:text-white mb-4 sm:mb-6 lg:mb-8">Reports</h1>
 
         {error && (
           <div className="mb-6 border-2 border-red-600 dark:border-red-500 bg-red-50 dark:bg-red-900/20 p-4">
@@ -206,12 +222,51 @@ export default function ReportsPage() {
           </div>
         )}
 
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold text-black dark:text-white mb-6">
+        <div className="mb-8 sm:mb-12">
+          <h2 className="text-xl sm:text-2xl font-bold text-black dark:text-white mb-4 sm:mb-6">
             12-Month Savings Projection
           </h2>
 
-          <div className="mb-6 border border-black dark:border-gray-700 bg-white dark:bg-gray-800">
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-3">
+            {savingsProjection.map((item, index) => (
+              <div
+                key={index}
+                className="border border-black dark:border-gray-700 p-4 bg-white dark:bg-gray-800"
+              >
+                <div className="text-base font-medium text-black dark:text-white mb-3">
+                  {item.monthName} {item.year}
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-black dark:text-gray-400">Income</span>
+                    <span className="text-sm font-medium text-black dark:text-white">
+                      ${formatCurrency(item.plannedIncome)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-black dark:text-gray-400">Expenses</span>
+                    <span className="text-sm font-medium text-black dark:text-white">
+                      ${formatCurrency(item.plannedExpenses)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t border-black dark:border-gray-700">
+                    <span className="text-sm font-medium text-black dark:text-white">Savings</span>
+                    <span className={`text-sm font-semibold ${
+                      item.plannedSavings >= 0 
+                        ? 'text-green-600 dark:text-green-400' 
+                        : 'text-red-600 dark:text-red-400'
+                    }`}>
+                      ${formatCurrency(item.plannedSavings)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden md:block border border-black dark:border-gray-700 bg-white dark:bg-gray-800">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-black dark:border-gray-700">
@@ -232,17 +287,17 @@ export default function ReportsPage() {
               <tbody>
                 {savingsProjection.map((item, index) => (
                   <tr key={index} className="border-b border-black dark:border-gray-700">
-                    <td className="p-3 text-black dark:text-white">
+                    <td className="p-3 text-sm text-black dark:text-white">
                       {item.monthName} {item.year}
                     </td>
-                    <td className="p-3 text-right text-black dark:text-white">
-                      ${item.plannedIncome.toFixed(2)}
+                    <td className="p-3 text-sm text-right text-black dark:text-white">
+                      ${formatCurrency(item.plannedIncome)}
                     </td>
-                    <td className="p-3 text-right text-black dark:text-white">
-                      ${item.plannedExpenses.toFixed(2)}
+                    <td className="p-3 text-sm text-right text-black dark:text-white">
+                      ${formatCurrency(item.plannedExpenses)}
                     </td>
-                    <td className="p-3 text-right text-black dark:text-white">
-                      ${item.plannedSavings.toFixed(2)}
+                    <td className="p-3 text-sm text-right text-black dark:text-white">
+                      ${formatCurrency(item.plannedSavings)}
                     </td>
                   </tr>
                 ))}
@@ -250,7 +305,7 @@ export default function ReportsPage() {
             </table>
           </div>
 
-          <div className="h-96 border border-black p-4">
+          <div className="h-64 sm:h-80 lg:h-96 border border-black dark:border-gray-700 p-2 sm:p-4 bg-white dark:bg-gray-800">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ccc" />
@@ -285,26 +340,91 @@ export default function ReportsPage() {
         </div>
 
         <div>
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-black dark:text-white">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-black dark:text-white">
               Category Spending for {year}
             </h2>
-            <div>
-                  <label className="block text-sm font-medium text-black dark:text-white mb-1">
+            <div className="w-full sm:w-auto">
+                  <label className="block text-xs sm:text-sm font-medium text-black dark:text-white mb-1">
                     Year
                   </label>
                   <input
                     type="number"
                     value={year}
                     onChange={(e) => setYear(parseInt(e.target.value))}
-                    className="border border-black dark:border-gray-700 px-3 py-2 text-black dark:text-white bg-white dark:bg-gray-900"
+                    className="w-full sm:w-auto border border-black dark:border-gray-700 px-3 py-2 text-sm sm:text-base text-black dark:text-white bg-white dark:bg-gray-900"
               />
             </div>
           </div>
 
           {categorySpending && categorySpending.categories.length > 0 ? (
             <>
-                  <div className="mb-6 border border-black dark:border-gray-700 bg-white dark:bg-gray-800">
+                  {/* Mobile Card View */}
+                  <div className="md:hidden space-y-3">
+                    {categorySpending.categories.map((cat: any) => {
+                      const category = expenseCategories.find(
+                        (c) => c.name === cat.categoryName
+                      )
+                      const color = category?.colorHex || PASTEL_PALETTE[0]
+                      const lightTint = getLightTint(color, 0.1)
+
+                      return (
+                        <div
+                          key={cat.categoryId || cat.categoryName}
+                          className="border border-black dark:border-gray-700 p-4 bg-white dark:bg-gray-800"
+                          style={{ backgroundColor: lightTint }}
+                        >
+                          <div className="flex items-center gap-3 mb-3">
+                            {category ? (
+                              <CategoryColorPicker
+                                color={category.colorHex}
+                                onChange={(newColor) => handleColorChange(category.id, newColor)}
+                                categoryName={cat.categoryName}
+                                usedColors={expenseCategories
+                                  .filter((c) => c.id !== category.id && c.colorHex)
+                                  .map((c) => c.colorHex!)}
+                              />
+                            ) : (
+                              <div
+                                className="w-6 h-6 rounded border border-black dark:border-gray-700 flex-shrink-0"
+                                style={{ backgroundColor: color }}
+                              />
+                            )}
+                            <div className="flex-1">
+                              <div className="text-base font-medium text-black dark:text-white">
+                                {cat.categoryName}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <span className="text-sm text-black dark:text-gray-400">Total Spent</span>
+                              <span className="text-base font-semibold text-black dark:text-white">
+                                ${formatCurrency(cat.totalSpent)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-sm text-black dark:text-gray-400">% of Total</span>
+                              <span className="text-base font-semibold text-black dark:text-white">
+                                {cat.percentage.toFixed(1)}%
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                    <div className="border-t-2 border-black dark:border-gray-700 pt-3 mt-3">
+                      <div className="flex justify-between">
+                        <span className="text-base font-medium text-black dark:text-white">Total</span>
+                        <span className="text-lg font-semibold text-black dark:text-white">
+                          ${formatCurrency(categorySpending.totalExpenses)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block border border-black dark:border-gray-700 bg-white dark:bg-gray-800">
                     <table className="w-full">
                       <thead>
                         <tr className="border-b border-black dark:border-gray-700">
@@ -353,11 +473,11 @@ export default function ReportsPage() {
                               />
                             )}
                           </td>
-                          <td className="p-3 text-black dark:text-white">{cat.categoryName}</td>
-                          <td className="p-3 text-right text-black dark:text-white">
-                            ${cat.totalSpent.toFixed(2)}
+                          <td className="p-3 text-sm text-black dark:text-white">{cat.categoryName}</td>
+                          <td className="p-3 text-sm text-right text-black dark:text-white">
+                            ${formatCurrency(cat.totalSpent)}
                           </td>
-                          <td className="p-3 text-right text-black dark:text-white">
+                          <td className="p-3 text-sm text-right text-black dark:text-white">
                             {cat.percentage.toFixed(1)}%
                           </td>
                         </tr>
@@ -365,17 +485,17 @@ export default function ReportsPage() {
                     })}
                     <tr className="border-t-2 border-black dark:border-gray-700 font-medium">
                       <td className="p-3"></td>
-                      <td className="p-3 text-black dark:text-white">Total</td>
-                      <td className="p-3 text-right text-black dark:text-white">
-                        ${categorySpending.totalExpenses.toFixed(2)}
+                      <td className="p-3 text-sm text-black dark:text-white">Total</td>
+                      <td className="p-3 text-sm text-right text-black dark:text-white">
+                        ${formatCurrency(categorySpending.totalExpenses)}
                       </td>
-                      <td className="p-3 text-right text-black dark:text-white">100%</td>
+                      <td className="p-3 text-sm text-right text-black dark:text-white">100%</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
 
-                  <div className="h-96 border border-black dark:border-gray-700 p-4 relative bg-white dark:bg-gray-800">
+                  <div className="h-64 sm:h-80 lg:h-96 border border-black dark:border-gray-700 p-2 sm:p-4 relative bg-white dark:bg-gray-800">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -396,7 +516,7 @@ export default function ReportsPage() {
                       ))}
                     </Pie>
                     <Tooltip 
-                      formatter={(value: any) => `$${Number(value).toFixed(2)}`}
+                      formatter={(value: any) => `$${formatCurrency(Number(value))}`}
                       contentStyle={{
                         backgroundColor: 'white',
                         border: '1px solid black',
@@ -408,7 +528,7 @@ export default function ReportsPage() {
                 </ResponsiveContainer>
                 
                     {/* Custom Legend */}
-                    <div className="absolute top-4 right-4 border border-black dark:border-gray-700 bg-white dark:bg-gray-800 p-3 max-h-80 overflow-y-auto">
+                    <div className="absolute top-2 right-2 sm:top-4 sm:right-4 border border-black dark:border-gray-700 bg-white dark:bg-gray-800 p-2 sm:p-3 max-h-48 sm:max-h-80 overflow-y-auto text-xs sm:text-sm">
                       <div className="text-xs font-medium text-black dark:text-white mb-2">Categories</div>
                       <div className="space-y-1">
                         {pieData.map((entry, index) => (
@@ -424,7 +544,7 @@ export default function ReportsPage() {
                               {entry.name}
                             </span>
                             <span className="text-black dark:text-white font-medium ml-auto">
-                              ${entry.value.toFixed(2)}
+                              ${formatCurrency(entry.value)}
                             </span>
                           </div>
                         ))}
