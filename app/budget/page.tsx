@@ -183,7 +183,7 @@ export default function BudgetPage() {
         <IncomeSection
           userId={selectedUserId}
           incomeSources={incomeSources}
-          onUpdate={fetchData}
+          onUpdate={() => fetchData(selectedUserId)}
         />
 
         <ExpensesSection

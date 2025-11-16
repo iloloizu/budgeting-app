@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import Navigation from '@/components/Navigation'
+import TellerConnect from '@/components/TellerConnect'
 import { formatCurrency } from '@/lib/format'
 import {
   LineChart,
@@ -54,10 +55,14 @@ export default function NetWorthPage() {
       if (accountsRes.ok) {
         const data = await accountsRes.json()
         setAccounts(data)
-      } else if (accountsRes.status === 500) {
-        const errorData = await accountsRes.json()
-        if (errorData.error === 'Teller API key not configured') {
-          setError('Teller API key not configured. Please set TELLER_API_KEY in your environment variables.')
+      } else {
+        const errorData = await accountsRes.json().catch(() => ({}))
+        if (accountsRes.status === 404) {
+          setError(errorData.message || errorData.error || 'No accounts found. Please connect your bank accounts first.')
+        } else if (accountsRes.status === 500) {
+          setError(errorData.error || 'Failed to fetch accounts. Check server logs for details.')
+        } else {
+          setError(errorData.error || `Failed to fetch accounts (${accountsRes.status})`)
         }
       }
     } catch (error: any) {
@@ -146,13 +151,16 @@ export default function NetWorthPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6 lg:mb-8">
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-black dark:text-white">Net Worth</h1>
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="w-full sm:w-auto border border-black dark:border-gray-700 px-4 py-2 text-sm sm:text-base text-black dark:text-white bg-white dark:bg-gray-800 hover:bg-black dark:hover:bg-gray-700 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {syncing ? 'Syncing...' : 'Sync Accounts'}
-          </button>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <TellerConnect userId={selectedUserId} onEnrollmentSuccess={fetchData} />
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="w-full sm:w-auto border border-black dark:border-gray-700 px-4 py-2 text-sm sm:text-base text-black dark:text-white bg-white dark:bg-gray-800 hover:bg-black dark:hover:bg-gray-700 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {syncing ? 'Syncing...' : 'Sync Accounts'}
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -160,6 +168,13 @@ export default function NetWorthPage() {
             <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
           </div>
         )}
+
+        {/* Disclaimer */}
+        <div className="mb-4 sm:mb-6 p-3 sm:p-4 border border-yellow-600 dark:border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20">
+          <p className="text-xs sm:text-sm text-yellow-800 dark:text-yellow-200">
+            <strong>Disclaimer:</strong> Net worth data is provided for informational purposes only. Account balances are synced from Teller and may not reflect real-time balances. This information should not be used as the sole basis for financial decisions. Please verify all account information with your financial institutions.
+          </p>
+        </div>
 
         {/* Summary Cards */}
         {latestSnapshot && (

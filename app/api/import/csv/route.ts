@@ -77,7 +77,11 @@ export async function POST(request: NextRequest) {
       for (let i = 1; i < lines.length; i++) {
         try {
           const values = parseCSVLine(lines[i])
+<<<<<<< Updated upstream
           const row: CSVRow = { Date: '', Amount: '' }
+=======
+          const row: CSVRow = {} as CSVRow
+>>>>>>> Stashed changes
           header.forEach((h, idx) => {
             row[h] = values[idx]?.trim() || ''
           })

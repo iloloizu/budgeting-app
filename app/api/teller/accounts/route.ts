@@ -16,41 +16,88 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Server-side only - API key never exposed to client
-    const accessToken = process.env.TELLER_API_KEY
-    if (!accessToken) {
+    // Get active enrollments for this user
+    const enrollments = await (prisma as any).tellerEnrollment.findMany({
+      where: { userId, isActive: true },
+    })
+
+    if (enrollments.length === 0) {
       return NextResponse.json(
-        { error: 'Teller API key not configured' },
-        { status: 500 }
+        { error: 'No Teller enrollments found. Please connect your accounts first.' },
+        { status: 404 }
       )
     }
 
-    // Sanitize: Ensure API key is never logged or exposed
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Teller API: Using configured API key (key not logged for security)')
+    // Fetch accounts and balances for all enrollments
+    const allAccounts: any[] = []
+    const allBalances: TellerBalance[] = []
+    const errors: string[] = []
+    let has404Error = false
+
+    for (const enrollment of enrollments) {
+      try {
+        // Use the stored access token from enrollment
+        const [accounts, balances] = await Promise.all([
+          getTellerAccounts(enrollment.accessToken),
+          getTellerBalances(enrollment.accessToken),
+        ])
+
+        // Tag accounts with enrollment ID
+        accounts.forEach((account: any) => {
+          allAccounts.push({ ...account, enrollmentId: enrollment.enrollmentId })
+        })
+        allBalances.push(...balances)
+      } catch (error: any) {
+        const errorMsg = `Enrollment ${enrollment.enrollmentId}: ${error.message || 'Unknown error'}`
+        errors.push(errorMsg)
+        
+        // If enrollment returns 404, mark it as inactive
+        if (error.message?.includes('404') || error.message?.includes('not_found')) {
+          has404Error = true
+          try {
+            await (prisma as any).tellerEnrollment.update({
+              where: { id: enrollment.id },
+              data: { isActive: false, status: 'disconnected' },
+            })
+          } catch (updateError) {
+            // Continue even if update fails
+          }
+        }
+      }
     }
 
-    // Fetch accounts and balances from Teller
-    const [accounts, balances] = await Promise.all([
-      getTellerAccounts(accessToken),
-      getTellerBalances(accessToken),
-    ])
+    if (allAccounts.length === 0) {
+      return NextResponse.json(
+        { 
+          error: 'No accounts found for connected enrollments',
+          message: has404Error
+            ? `All ${enrollments.length} enrollment(s) appear to be invalid or expired. Please reconnect your bank accounts using the "Connect Bank Account" button.`
+            : `Checked ${enrollments.length} enrollment(s). This may mean the accounts haven't been synced yet, or there was an error fetching them.`,
+          errors: errors.length > 0 ? errors : undefined
+        },
+        { status: 404 }
+      )
+    }
 
     // Create a map of account ID to balance
     const balanceMap = new Map<string, TellerBalance>()
-    balances.forEach((balance) => {
+    allBalances.forEach((balance) => {
       balanceMap.set(balance.account_id, balance)
     })
 
     // Sync accounts to database
     const syncedAccounts = []
-    for (const account of accounts) {
+    for (const account of allAccounts) {
       const balance = balanceMap.get(account.id)
       const isAsset = isAssetAccount(account.type)
       const balanceValue = balance ? getBalanceValue(balance, account.type) : 0
 
+      // Find the enrollment for this account
+      const enrollment = enrollments.find((e: any) => e.enrollmentId === account.enrollmentId)
+      if (!enrollment) continue
+
       // Upsert account
-      const dbAccount = await prisma.tellerAccount.upsert({
+      const dbAccount = await (prisma as any).tellerAccount.upsert({
         where: {
           userId_tellerAccountId: {
             userId,
@@ -58,23 +105,23 @@ export async function GET(request: NextRequest) {
           },
         },
         update: {
+          enrollmentId: enrollment.id,
           institutionId: account.institution.id,
           institutionName: account.institution.name,
           name: account.name,
           type: account.type,
           currency: account.currency,
-          enrollmentId: account.enrollment_id,
           isActive: true,
         },
         create: {
           userId,
+          enrollmentId: enrollment.id,
           tellerAccountId: account.id,
           institutionId: account.institution.id,
           institutionName: account.institution.name,
           name: account.name,
           type: account.type,
           currency: account.currency,
-          enrollmentId: account.enrollment_id,
         },
       })
 

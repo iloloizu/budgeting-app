@@ -125,6 +125,40 @@ export default function ReportsPage() {
     return category?.colorHex || PASTEL_PALETTE[0]
   }
 
+  // Memoize chart data to avoid recalculation - MUST be before conditional returns
+  const chartData = useMemo(() => {
+    return savingsProjection.map((item) => ({
+      month: `${item.monthName} ${item.year}`,
+      savings: item.plannedSavings,
+      income: item.plannedIncome,
+      expenses: item.plannedExpenses,
+    }))
+  }, [savingsProjection])
+
+  // Create category map for O(1) lookup instead of O(n) find - MUST be before conditional returns
+  const categoryMap = useMemo(() => {
+    const map = new Map<string, { id: string; colorHex?: string }>()
+    expenseCategories.forEach((cat) => {
+      map.set(cat.name, { id: cat.id, colorHex: cat.colorHex })
+    })
+    return map
+  }, [expenseCategories])
+
+  // Memoize pie data to avoid recalculation - MUST be before conditional returns
+  const pieData = useMemo(() => {
+    if (!categorySpending?.categories) return []
+    
+    return categorySpending.categories.map((cat: any) => {
+      const category = categoryMap.get(cat.categoryName)
+      return {
+        name: cat.categoryName,
+        value: cat.totalSpent,
+        color: category?.colorHex || PASTEL_PALETTE[0],
+        categoryId: category?.id,
+      }
+    })
+  }, [categorySpending, categoryMap])
+
   useEffect(() => {
     const stored = localStorage.getItem('selectedUserId')
     if (!stored && !selectedUserId) {
@@ -152,40 +186,6 @@ export default function ReportsPage() {
       </div>
     )
   }
-
-  // Memoize chart data to avoid recalculation
-  const chartData = useMemo(() => {
-    return savingsProjection.map((item) => ({
-      month: `${item.monthName} ${item.year}`,
-      savings: item.plannedSavings,
-      income: item.plannedIncome,
-      expenses: item.plannedExpenses,
-    }))
-  }, [savingsProjection])
-
-  // Create category map for O(1) lookup instead of O(n) find
-  const categoryMap = useMemo(() => {
-    const map = new Map<string, { id: string; colorHex?: string }>()
-    expenseCategories.forEach((cat) => {
-      map.set(cat.name, { id: cat.id, colorHex: cat.colorHex })
-    })
-    return map
-  }, [expenseCategories])
-
-  // Memoize pie data to avoid recalculation
-  const pieData = useMemo(() => {
-    if (!categorySpending?.categories) return []
-    
-    return categorySpending.categories.map((cat: any) => {
-      const category = categoryMap.get(cat.categoryName)
-      return {
-        name: cat.categoryName,
-        value: cat.totalSpent,
-        color: category?.colorHex || PASTEL_PALETTE[0],
-        categoryId: category?.id,
-      }
-    })
-  }, [categorySpending, categoryMap])
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
