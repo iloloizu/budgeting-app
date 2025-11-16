@@ -15,7 +15,7 @@ export const runtime = 'nodejs'
 export async function POST(request: NextRequest) {
   try {
     // Ensure prisma is initialized
-    if (!prisma || typeof prisma.categorizationRule === 'undefined') {
+    if (!prisma || !('categorizationRule' in prisma)) {
       console.error('Prisma client is undefined or not properly initialized')
       console.error('Prisma object:', prisma)
       return NextResponse.json(
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       for (let i = 1; i < lines.length; i++) {
         try {
           const values = parseCSVLine(lines[i])
-          const row: CSVRow = {}
+          const row: CSVRow = { Date: '', Amount: '' }
           header.forEach((h, idx) => {
             row[h] = values[idx]?.trim() || ''
           })
@@ -88,7 +88,6 @@ export async function POST(request: NextRequest) {
           }
         } catch (rowError) {
           console.error(`Error parsing row ${i + 1}:`, rowError)
-          // Continue with next row
         }
       }
     }
@@ -137,10 +136,10 @@ export async function POST(request: NextRequest) {
       }
 
       // Categorize - ensure prisma is passed correctly
-      if (!prisma || !prisma.categorizationRule) {
+      if (!prisma || !('categorizationRule' in prisma)) {
         console.error('Prisma client issue before categorization:', {
           prismaExists: !!prisma,
-          hasCategorizationRule: prisma ? !!prisma.categorizationRule : false,
+          hasCategorizationRule: prisma ? 'categorizationRule' in prisma : false,
         })
         throw new Error('Prisma client is not properly initialized for categorization')
       }
@@ -214,7 +213,7 @@ export async function POST(request: NextRequest) {
       preview: {
         totalRows: filteredTransactions.length,
         toImport: toImport.length,
-        duplicates: duplicates.length,
+        duplicateCount: duplicates.length,
         transactions: toImport.map((item) => ({
           date: item.parsed.date.toISOString(),
           amount: item.parsed.amount,
