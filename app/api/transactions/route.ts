@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { learnCategoryRule } from '@/lib/csv-import'
 
 export async function GET(request: NextRequest) {
   try {
@@ -100,11 +101,98 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Learn from the transaction if it has a merchant name
+    if (transaction.merchantName) {
+      await learnCategoryRule(
+        userId,
+        transaction.merchantName,
+        prisma,
+        transaction.expenseCategoryId || undefined,
+        transaction.incomeSourceId || undefined
+      )
+    }
+
     return NextResponse.json(transaction, { status: 201 })
   } catch (error) {
     console.error('Error creating transaction:', error)
     return NextResponse.json(
       { error: 'Failed to create transaction' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const {
+      id,
+      expenseCategoryId,
+      incomeSourceId,
+      description,
+      amount,
+    } = body
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'id is required' },
+        { status: 400 }
+      )
+    }
+
+    // Get existing transaction to check for changes
+    const existing = await prisma.transaction.findUnique({
+      where: { id },
+      include: {
+        expenseCategory: true,
+        incomeSource: true,
+      },
+    })
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: 'Transaction not found' },
+        { status: 404 }
+      )
+    }
+
+    // Update transaction
+    const transaction = await prisma.transaction.update({
+      where: { id },
+      data: {
+        ...(expenseCategoryId !== undefined && { expenseCategoryId }),
+        ...(incomeSourceId !== undefined && { incomeSourceId }),
+        ...(description !== undefined && { description }),
+        ...(amount !== undefined && { amount: parseFloat(amount) }),
+      },
+      include: {
+        incomeSource: true,
+        expenseCategory: true,
+      },
+    })
+
+    // Learn from category changes
+    const categoryChanged =
+      expenseCategoryId !== undefined &&
+      expenseCategoryId !== existing.expenseCategoryId
+    const incomeSourceChanged =
+      incomeSourceId !== undefined && incomeSourceId !== existing.incomeSourceId
+
+    if ((categoryChanged || incomeSourceChanged) && transaction.merchantName) {
+      await learnCategoryRule(
+        transaction.userId,
+        transaction.merchantName,
+        prisma,
+        transaction.expenseCategoryId || undefined,
+        transaction.incomeSourceId || undefined
+      )
+    }
+
+    return NextResponse.json(transaction)
+  } catch (error) {
+    console.error('Error updating transaction:', error)
+    return NextResponse.json(
+      { error: 'Failed to update transaction' },
       { status: 500 }
     )
   }

@@ -20,6 +20,7 @@ model User {
   expenseCategories ExpenseCategory[]
   monthlyBudgets   MonthlyBudget[]
   transactions     Transaction[]
+  categorizationRules CategorizationRule[]
 }
 
 model IncomeSource {
@@ -33,6 +34,7 @@ model IncomeSource {
 
   user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
+  categorizationRules CategorizationRule[]
 }
 
 model ExpenseCategory {
@@ -45,6 +47,7 @@ model ExpenseCategory {
   user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   budgetLineItems BudgetLineItem[]
   transactions    Transaction[]
+  categorizationRules CategorizationRule[]
 }
 
 model MonthlyBudget {
@@ -85,11 +88,37 @@ model Transaction {
   type             String   // "income" | "expense"
   incomeSourceId   String?
   expenseCategoryId String?
+  fingerprint      String?  // For deduplication
+  accountName      String?
+  accountNumber    String?
+  institutionName  String?
+  merchantName     String?  // Original merchant name from CSV
 
   user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   incomeSource   IncomeSource?  @relation(fields: [incomeSourceId], references: [id], onDelete: SetNull)
   expenseCategory ExpenseCategory? @relation(fields: [expenseCategoryId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
+
+  @@unique([userId, fingerprint])
+  @@index([userId, date])
+}
+
+model CategorizationRule {
+  id             String   @id @default(cuid())
+  userId         String
+  pattern        String
+  matchType      String   // "exact" | "contains"
+  categoryId     String?  // For expenses
+  incomeSourceId String?  // For income
+  appliesTo      String   // "expense" | "income" | "both"
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category       ExpenseCategory? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  incomeSource   IncomeSource?   @relation(fields: [incomeSourceId], references: [id], onDelete: Cascade)
+
+  @@index([userId, pattern])
 }
 

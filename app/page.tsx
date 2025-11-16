@@ -17,6 +17,8 @@ export default function Home() {
   const handleUserSelect = (userId: string) => {
     setSelectedUserId(userId)
     localStorage.setItem('selectedUserId', userId)
+    // Refresh to update navigation
+    window.location.href = '/'
   }
 
   if (!selectedUserId) {

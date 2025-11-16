@@ -119,11 +119,42 @@ export default function TransactionsPage() {
     }
   }
 
+  const handleCategoryChange = async (
+    transactionId: string,
+    categoryId: string,
+    type: 'expense' | 'income'
+  ) => {
+    try {
+      const updateData =
+        type === 'expense'
+          ? { id: transactionId, expenseCategoryId: categoryId }
+          : { id: transactionId, incomeSourceId: categoryId }
+
+      await fetch('/api/transactions', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData),
+      })
+
+      await fetchTransactions()
+    } catch (error) {
+      console.error('Error updating transaction category:', error)
+      alert('Failed to update category')
+    }
+  }
+
+  useEffect(() => {
+    const stored = localStorage.getItem('selectedUserId')
+    if (!stored && !selectedUserId) {
+      window.location.href = '/'
+    }
+  }, [selectedUserId])
+
   if (!selectedUserId) {
     return (
       <div className="min-h-screen bg-white">
         <div className="max-w-2xl mx-auto px-4 py-16">
-          <p className="text-black">Please select a user first.</p>
+          <p className="text-black">Redirecting to login...</p>
         </div>
       </div>
     )
@@ -358,10 +389,38 @@ export default function TransactionsPage() {
                     {new Date(transaction.date).toLocaleDateString()}
                   </td>
                   <td className="p-3 text-black">{transaction.description}</td>
-                  <td className="p-3 text-black">
-                    {transaction.type === 'income'
-                      ? transaction.incomeSource?.name || '-'
-                      : transaction.expenseCategory?.name || '-'}
+                  <td className="p-3">
+                    {transaction.type === 'income' ? (
+                      <select
+                        value={transaction.incomeSourceId || ''}
+                        onChange={(e) =>
+                          handleCategoryChange(transaction.id, e.target.value, 'income')
+                        }
+                        className="w-full border border-black px-2 py-1 text-black bg-white"
+                      >
+                        <option value="">Select source</option>
+                        {incomeSources.map((source) => (
+                          <option key={source.id} value={source.id}>
+                            {source.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <select
+                        value={transaction.expenseCategoryId || ''}
+                        onChange={(e) =>
+                          handleCategoryChange(transaction.id, e.target.value, 'expense')
+                        }
+                        className="w-full border border-black px-2 py-1 text-black bg-white"
+                      >
+                        <option value="">Select category</option>
+                        {expenseCategories.map((category) => (
+                          <option key={category.id} value={category.id}>
+                            {category.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </td>
                   <td className="p-3 text-right text-black">
                     ${transaction.amount.toFixed(2)}
