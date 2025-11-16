@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Navigation from '@/components/Navigation'
 import { formatCurrency } from '@/lib/format'
 
@@ -13,21 +13,7 @@ export default function BudgetPage() {
   const [budgetLineItems, setBudgetLineItems] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const stored = localStorage.getItem('selectedUserId')
-    if (stored) {
-      setSelectedUserId(stored)
-      fetchData(stored)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (selectedUserId) {
-      fetchData(selectedUserId)
-    }
-  }, [selectedUserId, year, month])
-
-  const fetchData = async (userId: string) => {
+  const fetchData = useCallback(async (userId: string) => {
     setLoading(true)
     try {
       const [incomeRes, categoriesRes, budgetRes] = await Promise.all([
@@ -61,7 +47,21 @@ export default function BudgetPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [year, month])
+
+  useEffect(() => {
+    const stored = localStorage.getItem('selectedUserId')
+    if (stored) {
+      setSelectedUserId(stored)
+      fetchData(stored)
+    }
+  }, [fetchData])
+
+  useEffect(() => {
+    if (selectedUserId) {
+      fetchData(selectedUserId)
+    }
+  }, [selectedUserId, year, month, fetchData])
 
   const handleSaveBudget = async () => {
     if (!selectedUserId) return

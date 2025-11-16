@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import UserSelector from '@/components/UserSelector'
 import Navigation from '@/components/Navigation'
 import { formatCurrency } from '@/lib/format'
@@ -60,14 +60,7 @@ function DashboardContent({ userId }: { userId: string }) {
   const [transactions, setTransactions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (userId) {
-      fetchBudget()
-      fetchTransactions()
-    }
-  }, [userId, currentMonth, currentYear])
-
-  const fetchBudget = async () => {
+  const fetchBudget = useCallback(async () => {
     try {
       const res = await fetch(
         `/api/budget?userId=${userId}&year=${currentYear}&month=${currentMonth}`
@@ -79,9 +72,9 @@ function DashboardContent({ userId }: { userId: string }) {
     } catch (error) {
       console.error('Error fetching budget:', error)
     }
-  }
+  }, [userId, currentYear, currentMonth])
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     try {
       const res = await fetch(
         `/api/transactions?userId=${userId}&year=${currentYear}&month=${currentMonth}`
@@ -95,7 +88,14 @@ function DashboardContent({ userId }: { userId: string }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [userId, currentYear, currentMonth])
+
+  useEffect(() => {
+    if (userId) {
+      fetchBudget()
+      fetchTransactions()
+    }
+  }, [userId, currentMonth, currentYear, fetchBudget, fetchTransactions])
 
   // Memoize calculations to avoid recalculating on every render
   const { actualIncome, actualExpenses, actualSavings, plannedSavings, savingsIndicator, expensesIndicator } = useMemo(() => {
@@ -207,11 +207,7 @@ function NetWorthChart({ userId }: { userId: string }) {
   const [netWorthData, setNetWorthData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchNetWorth()
-  }, [userId])
-
-  const fetchNetWorth = async () => {
+  const fetchNetWorth = useCallback(async () => {
     try {
       const res = await fetch(`/api/net-worth/snapshot?userId=${userId}&limit=12`)
       if (res.ok) {
@@ -223,7 +219,11 @@ function NetWorthChart({ userId }: { userId: string }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [userId])
+
+  useEffect(() => {
+    fetchNetWorth()
+  }, [userId, fetchNetWorth])
 
   const chartData = useMemo(() => {
     return netWorthData.map((snapshot) => ({

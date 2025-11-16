@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import Navigation from '@/components/Navigation'
 import TellerConnect from '@/components/TellerConnect'
 import { formatCurrency } from '@/lib/format'
@@ -30,13 +30,7 @@ export default function NetWorthPage() {
     }
   }, [])
 
-  useEffect(() => {
-    if (selectedUserId) {
-      fetchData()
-    }
-  }, [selectedUserId])
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!selectedUserId) return
 
     setLoading(true)
@@ -71,7 +65,13 @@ export default function NetWorthPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedUserId])
+
+  useEffect(() => {
+    if (selectedUserId) {
+      fetchData()
+    }
+  }, [selectedUserId, fetchData])
 
   const handleSync = async () => {
     if (!selectedUserId) return
@@ -340,7 +340,7 @@ export default function NetWorthPage() {
         {snapshots.length === 0 && !loading && (
           <div className="border border-black dark:border-gray-700 p-8 text-center bg-white dark:bg-gray-800">
             <p className="text-black dark:text-white mb-4">
-              No net worth data yet. Click "Sync Accounts" to fetch your account balances from Teller.
+              No net worth data yet. Click &quot;Sync Accounts&quot; to fetch your account balances from Teller.
             </p>
           </div>
         )}

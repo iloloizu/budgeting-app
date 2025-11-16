@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import Navigation from '@/components/Navigation'
 import CategoryColorPicker from '@/components/CategoryColorPicker'
 import {
@@ -37,21 +37,7 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const stored = localStorage.getItem('selectedUserId')
-    if (stored) {
-      setSelectedUserId(stored)
-      fetchData(stored)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (selectedUserId) {
-      fetchData(selectedUserId)
-    }
-  }, [selectedUserId, year])
-
-  const fetchData = async (userId: string) => {
+  const fetchData = useCallback(async (userId: string) => {
     setLoading(true)
     try {
       const [projectionRes, spendingRes, categoriesRes] = await Promise.all([
@@ -79,7 +65,21 @@ export default function ReportsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [year])
+
+  useEffect(() => {
+    const stored = localStorage.getItem('selectedUserId')
+    if (stored) {
+      setSelectedUserId(stored)
+      fetchData(stored)
+    }
+  }, [fetchData])
+
+  useEffect(() => {
+    if (selectedUserId) {
+      fetchData(selectedUserId)
+    }
+  }, [selectedUserId, year, fetchData])
 
   const handleColorChange = async (categoryId: string, newColor: string) => {
     try {
