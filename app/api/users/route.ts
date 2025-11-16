@@ -7,10 +7,19 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     })
     return NextResponse.json(users)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching users:', error)
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      meta: error.meta,
+    })
     return NextResponse.json(
-      { error: 'Failed to fetch users' },
+      { 
+        error: 'Failed to fetch users',
+        message: error.message || 'Unknown error',
+        code: error.code || 'UNKNOWN',
+      },
       { status: 500 }
     )
   }
@@ -38,6 +47,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(user, { status: 201 })
   } catch (error: any) {
     console.error('Error creating user:', error)
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      meta: error.meta,
+      stack: error.stack,
+    })
     if (error.code === 'P2002') {
       return NextResponse.json(
         { error: 'User with this email already exists' },
@@ -45,7 +60,11 @@ export async function POST(request: NextRequest) {
       )
     }
     return NextResponse.json(
-      { error: 'Failed to create user' },
+      { 
+        error: 'Failed to create user',
+        message: error.message || 'Unknown error',
+        code: error.code || 'UNKNOWN',
+      },
       { status: 500 }
     )
   }
