@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { roundCurrency } from '@/lib/format'
 
 export async function GET(request: NextRequest) {
   try {
@@ -61,8 +62,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const totalPlannedSavings =
+    const totalPlannedSavings = roundCurrency(
       (totalPlannedIncome || 0) - (totalPlannedExpenses || 0)
+    )
 
     // Upsert the monthly budget
     const budget = await prisma.monthlyBudget.upsert({
@@ -74,16 +76,20 @@ export async function POST(request: NextRequest) {
         },
       },
       update: {
-        totalPlannedIncome: parseFloat(totalPlannedIncome || 0),
-        totalPlannedExpenses: parseFloat(totalPlannedExpenses || 0),
+        totalPlannedIncome: roundCurrency(parseFloat(totalPlannedIncome || 0)),
+        totalPlannedExpenses: roundCurrency(
+          parseFloat(totalPlannedExpenses || 0)
+        ),
         totalPlannedSavings,
       },
       create: {
         userId,
         year: parseInt(year),
         month: parseInt(month),
-        totalPlannedIncome: parseFloat(totalPlannedIncome || 0),
-        totalPlannedExpenses: parseFloat(totalPlannedExpenses || 0),
+        totalPlannedIncome: roundCurrency(parseFloat(totalPlannedIncome || 0)),
+        totalPlannedExpenses: roundCurrency(
+          parseFloat(totalPlannedExpenses || 0)
+        ),
         totalPlannedSavings,
       },
     })
@@ -99,7 +105,7 @@ export async function POST(request: NextRequest) {
         data: budgetLineItems.map((item: any) => ({
           monthlyBudgetId: budget.id,
           expenseCategoryId: item.expenseCategoryId,
-          plannedAmount: parseFloat(item.plannedAmount || 0),
+          plannedAmount: roundCurrency(parseFloat(item.plannedAmount || 0)),
         })),
       })
     }

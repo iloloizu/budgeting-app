@@ -42,6 +42,7 @@ model ExpenseCategory {
   userId    String
   name      String
   type      String   // "fixed" | "variable"
+  colorHex  String?  // Pastel color hex code
   createdAt DateTime @default(now())
 
   user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)

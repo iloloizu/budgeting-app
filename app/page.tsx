@@ -23,9 +23,9 @@ export default function Home() {
 
   if (!selectedUserId) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-white dark:bg-gray-900">
         <div className="max-w-2xl mx-auto px-4 py-16">
-          <h1 className="text-4xl font-light text-black mb-8">Budget App</h1>
+          <h1 className="text-4xl font-bold text-black dark:text-white mb-8">Budget App</h1>
           <UserSelector onUserSelect={handleUserSelect} />
         </div>
       </div>
@@ -33,10 +33,10 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-gray-900">
       <Navigation selectedUserId={selectedUserId} />
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <h1 className="text-4xl font-light text-black mb-8">Dashboard</h1>
+        <h1 className="text-4xl font-bold text-black dark:text-white mb-8">Dashboard</h1>
         <DashboardContent userId={selectedUserId} />
       </div>
     </div>
@@ -86,7 +86,7 @@ function DashboardContent({ userId }: { userId: string }) {
   }
 
   if (loading) {
-    return <div className="text-black">Loading...</div>
+    return <div className="text-black dark:text-white">Loading...</div>
   }
 
   const actualIncome = transactions
@@ -100,36 +100,36 @@ function DashboardContent({ userId }: { userId: string }) {
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="border border-black p-6">
-          <h3 className="text-sm font-medium text-black mb-2">
+        <div className="border border-black dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
+          <h3 className="text-sm font-medium text-black dark:text-white mb-2">
             Planned Income
           </h3>
-          <p className="text-3xl font-light text-black">
+          <p className="text-3xl font-light text-black dark:text-white">
             ${budget?.totalPlannedIncome?.toFixed(2) || '0.00'}
           </p>
-          <p className="text-sm text-black mt-2">
+          <p className="text-sm text-black dark:text-gray-300 mt-2">
             Actual: ${actualIncome.toFixed(2)}
           </p>
         </div>
-        <div className="border border-black p-6">
-          <h3 className="text-sm font-medium text-black mb-2">
+        <div className="border border-black dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
+          <h3 className="text-sm font-medium text-black dark:text-white mb-2">
             Planned Expenses
           </h3>
-          <p className="text-3xl font-light text-black">
+          <p className="text-3xl font-light text-black dark:text-white">
             ${budget?.totalPlannedExpenses?.toFixed(2) || '0.00'}
           </p>
-          <p className="text-sm text-black mt-2">
+          <p className="text-sm text-black dark:text-gray-300 mt-2">
             Actual: ${actualExpenses.toFixed(2)}
           </p>
         </div>
-        <div className="border border-black p-6">
-          <h3 className="text-sm font-medium text-black mb-2">
+        <div className="border border-black dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
+          <h3 className="text-sm font-medium text-black dark:text-white mb-2">
             Planned Savings
           </h3>
-          <p className="text-3xl font-light text-black">
+          <p className="text-3xl font-light text-black dark:text-white">
             ${budget?.totalPlannedSavings?.toFixed(2) || '0.00'}
           </p>
-          <p className="text-sm text-black mt-2">
+          <p className="text-sm text-black dark:text-gray-300 mt-2">
             Actual: ${actualSavings.toFixed(2)}
           </p>
         </div>

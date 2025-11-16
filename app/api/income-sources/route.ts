@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { roundCurrency } from '@/lib/format'
 
 export async function GET(request: NextRequest) {
   try {
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
       data: {
         userId,
         name,
-        amount: parseFloat(amount),
+        amount: roundCurrency(parseFloat(amount)),
         type,
         isActive: isActive !== undefined ? isActive : true,
       },

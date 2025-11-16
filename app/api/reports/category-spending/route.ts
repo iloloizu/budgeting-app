@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { roundCurrency } from '@/lib/format'
 
 export async function GET(request: NextRequest) {
   try {
@@ -46,25 +47,28 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        categoryTotals[categoryId].total += transaction.amount
+        categoryTotals[categoryId].total = roundCurrency(
+          categoryTotals[categoryId].total + transaction.amount
+        )
       }
     })
 
-    const totalExpenses = Object.values(categoryTotals).reduce(
-      (sum, cat) => sum + cat.total,
-      0
+    const totalExpenses = roundCurrency(
+      Object.values(categoryTotals).reduce((sum, cat) => sum + cat.total, 0)
     )
 
     const result = Object.entries(categoryTotals).map(([id, data]) => ({
       categoryId: id,
       categoryName: data.name,
-      totalSpent: data.total,
-      percentage: totalExpenses > 0 ? (data.total / totalExpenses) * 100 : 0,
+      totalSpent: roundCurrency(data.total),
+      percentage: roundCurrency(
+        totalExpenses > 0 ? (data.total / totalExpenses) * 100 : 0
+      ),
     }))
 
     return NextResponse.json({
       year: parseInt(year),
-      totalExpenses,
+      totalExpenses: roundCurrency(totalExpenses),
       categories: result.sort((a, b) => b.totalSpent - a.totalSpent),
     })
   } catch (error) {

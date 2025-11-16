@@ -180,27 +180,34 @@ export default function ImportPage() {
 
   if (!selectedUserId) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-white dark:bg-gray-900">
         <div className="max-w-2xl mx-auto px-4 py-16">
-          <p className="text-black">Redirecting to login...</p>
+          <p className="text-black dark:text-white">Redirecting to login...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-gray-900">
       <Navigation selectedUserId={selectedUserId} />
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <h1 className="text-4xl font-light text-black mb-8">Import Transactions (CSV)</h1>
+        <h1 className="text-4xl font-bold text-black dark:text-white mb-8">Import Transactions (CSV)</h1>
+        
+        <div className="mb-6 p-4 border border-black dark:border-gray-700 bg-white dark:bg-gray-800">
+          <p className="text-sm text-black dark:text-gray-300">
+            Upload a CSV file exported from Rocket Money to import your transactions. 
+            The app will automatically categorize transactions and help you track your spending.
+          </p>
+        </div>
 
         {error && (
-          <div className="mb-6 border-2 border-red-600 bg-red-50 p-4">
+          <div className="mb-6 border-2 border-red-600 dark:border-red-500 bg-red-50 dark:bg-red-900/20 p-4">
             <div className="flex justify-between items-start mb-2">
-              <h3 className="text-lg font-medium text-red-900">Error</h3>
+              <h3 className="text-lg font-medium text-red-900 dark:text-red-300">Error</h3>
               <button
                 onClick={() => setError(null)}
-                className="text-red-600 hover:text-red-800"
+                className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
               >
                 ×
               </button>
@@ -208,7 +215,7 @@ export default function ImportPage() {
             <textarea
               readOnly
               value={error}
-              className="w-full h-64 p-3 border border-red-300 bg-white text-black font-mono text-sm"
+              className="w-full h-64 p-3 border border-red-300 dark:border-red-700 bg-white dark:bg-gray-900 text-black dark:text-white font-mono text-sm"
               onClick={(e) => e.currentTarget.select()}
             />
             <button
@@ -216,7 +223,7 @@ export default function ImportPage() {
                 navigator.clipboard.writeText(error)
                 alert('Error message copied to clipboard!')
               }}
-              className="mt-2 border border-red-600 px-4 py-2 text-red-600 hover:bg-red-600 hover:text-white transition-colors"
+              className="mt-2 border border-red-600 dark:border-red-500 px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-600 dark:hover:bg-red-700 hover:text-white transition-colors"
             >
               Copy Error to Clipboard
             </button>
@@ -225,38 +232,38 @@ export default function ImportPage() {
 
         {step === 'upload' && (
           <div className="space-y-6">
-            <div className="border border-black p-6">
-              <h2 className="text-2xl font-light text-black mb-4">Step 1: Upload CSV File</h2>
+            <div className="border border-black dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
+              <h2 className="text-2xl font-bold text-black dark:text-white mb-4">Step 1: Upload CSV File</h2>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-black mb-2">
+                  <label className="block text-sm font-medium text-black dark:text-white mb-2">
                     Select CSV File
                   </label>
                   <input
                     type="file"
                     accept=".csv"
                     onChange={(e) => setFile(e.target.files?.[0] || null)}
-                    className="w-full border border-black px-3 py-2 text-black bg-white"
+                    className="w-full border border-black dark:border-gray-700 px-3 py-2 text-black dark:text-white bg-white dark:bg-gray-900"
                   />
                 </div>
 
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-black mb-1">Year</label>
+                    <label className="block text-sm font-medium text-black dark:text-white mb-1">Year</label>
                     <input
                       type="number"
                       value={year}
                       onChange={(e) => setYear(parseInt(e.target.value))}
-                      className="w-full border border-black px-3 py-2 text-black bg-white"
+                      className="w-full border border-black dark:border-gray-700 px-3 py-2 text-black dark:text-white bg-white dark:bg-gray-900"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-black mb-1">Month</label>
+                    <label className="block text-sm font-medium text-black dark:text-white mb-1">Month</label>
                     <select
                       value={month}
                       onChange={(e) => setMonth(parseInt(e.target.value))}
-                      className="w-full border border-black px-3 py-2 text-black bg-white"
+                      className="w-full border border-black dark:border-gray-700 px-3 py-2 text-black dark:text-white bg-white dark:bg-gray-900"
                     >
                       {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                         <option key={m} value={m}>
@@ -272,7 +279,7 @@ export default function ImportPage() {
                 <button
                   onClick={handleFileUpload}
                   disabled={!file || loading}
-                  className="border border-black px-6 py-2 text-black hover:bg-black hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="border border-black dark:border-gray-700 px-6 py-2 text-black dark:text-white bg-white dark:bg-gray-800 hover:bg-black dark:hover:bg-gray-700 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Processing...' : 'Preview Transactions'}
                 </button>
@@ -283,12 +290,12 @@ export default function ImportPage() {
 
         {step === 'preview' && preview && (
           <div className="space-y-6">
-            <div className="border border-black p-6">
-              <h2 className="text-2xl font-light text-black mb-4">
+            <div className="border border-black dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
+              <h2 className="text-2xl font-bold text-black dark:text-white mb-4">
                 Step 2: Review & Edit Categories
               </h2>
 
-              <div className="mb-4 text-sm text-black">
+              <div className="mb-4 text-sm text-black dark:text-gray-300">
                 <p>
                   Total rows in {new Date(year, month - 1).toLocaleString('default', {
                     month: 'long',
@@ -296,40 +303,40 @@ export default function ImportPage() {
                   {year}: {preview.totalRows}
                 </p>
                 <p>To import: {preview.toImport}</p>
-                <p className="text-red-600">Duplicates (will be skipped): {preview.duplicates}</p>
+                <p className="text-red-600 dark:text-red-400">Duplicates (will be skipped): {preview.duplicates}</p>
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full border border-black">
+                <table className="w-full border border-black dark:border-gray-700">
                   <thead>
-                    <tr className="border-b border-black">
-                      <th className="text-left p-3 text-sm font-medium text-black">Date</th>
-                      <th className="text-left p-3 text-sm font-medium text-black">Merchant</th>
-                      <th className="text-right p-3 text-sm font-medium text-black">Amount</th>
-                      <th className="text-left p-3 text-sm font-medium text-black">Type</th>
-                      <th className="text-left p-3 text-sm font-medium text-black">Category</th>
-                      <th className="text-left p-3 text-sm font-medium text-black">Status</th>
+                    <tr className="border-b border-black dark:border-gray-700">
+                      <th className="text-left p-3 text-sm font-medium text-black dark:text-white">Date</th>
+                      <th className="text-left p-3 text-sm font-medium text-black dark:text-white">Merchant</th>
+                      <th className="text-right p-3 text-sm font-medium text-black dark:text-white">Amount</th>
+                      <th className="text-left p-3 text-sm font-medium text-black dark:text-white">Type</th>
+                      <th className="text-left p-3 text-sm font-medium text-black dark:text-white">Category</th>
+                      <th className="text-left p-3 text-sm font-medium text-black dark:text-white">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {preview.transactions.map((t: PreviewTransaction) => (
                       <tr
                         key={t.fingerprint}
-                        className={`border-b border-black ${
-                          t.isDuplicate ? 'bg-gray-100' : ''
+                        className={`border-b border-black dark:border-gray-700 ${
+                          t.isDuplicate ? 'bg-gray-100 dark:bg-gray-700' : ''
                         }`}
                       >
-                        <td className="p-3 text-black">
+                        <td className="p-3 text-black dark:text-white">
                           {new Date(t.date).toLocaleDateString()}
                         </td>
-                        <td className="p-3 text-black">{t.merchantName || t.description}</td>
-                        <td className="p-3 text-right text-black">
+                        <td className="p-3 text-black dark:text-white">{t.merchantName || t.description}</td>
+                        <td className="p-3 text-right text-black dark:text-white">
                           ${t.amount.toFixed(2)}
                         </td>
-                        <td className="p-3 text-black capitalize">{t.type}</td>
+                        <td className="p-3 text-black dark:text-white capitalize">{t.type}</td>
                         <td className="p-3">
                           {t.isDuplicate ? (
-                            <span className="text-red-600">Duplicate</span>
+                            <span className="text-red-600 dark:text-red-400">Duplicate</span>
                           ) : t.type === 'expense' ? (
                             <select
                               value={
@@ -340,7 +347,7 @@ export default function ImportPage() {
                               onChange={(e) =>
                                 handleCategoryChange(t.fingerprint, e.target.value, 'expense')
                               }
-                              className="w-full border border-black px-2 py-1 text-black bg-white"
+                              className="w-full border border-black dark:border-gray-700 px-2 py-1 text-black dark:text-white bg-white dark:bg-gray-900"
                             >
                               <option value="">Select category</option>
                               {expenseCategories.map((cat) => (
@@ -359,7 +366,7 @@ export default function ImportPage() {
                               onChange={(e) =>
                                 handleCategoryChange(t.fingerprint, e.target.value, 'income')
                               }
-                              className="w-full border border-black px-2 py-1 text-black bg-white"
+                              className="w-full border border-black dark:border-gray-700 px-2 py-1 text-black dark:text-white bg-white dark:bg-gray-900"
                             >
                               <option value="">Select source</option>
                               {incomeSources.map((source) => (
@@ -370,9 +377,9 @@ export default function ImportPage() {
                             </select>
                           )}
                         </td>
-                        <td className="p-3 text-black text-sm">
+                        <td className="p-3 text-black dark:text-white text-sm">
                           {t.ruleUsed && (
-                            <span className="text-gray-600">Auto: {t.ruleUsed}</span>
+                            <span className="text-gray-600 dark:text-gray-400">Auto: {t.ruleUsed}</span>
                           )}
                         </td>
                       </tr>
@@ -384,14 +391,14 @@ export default function ImportPage() {
               <div className="mt-6 flex gap-4">
                 <button
                   onClick={() => setStep('upload')}
-                  className="border border-black px-6 py-2 text-black hover:bg-black hover:text-white transition-colors"
+                  className="border border-black dark:border-gray-700 px-6 py-2 text-black dark:text-white bg-white dark:bg-gray-800 hover:bg-black dark:hover:bg-gray-700 hover:text-white transition-colors"
                 >
                   Back
                 </button>
                 <button
                   onClick={handleImport}
                   disabled={loading}
-                  className="border border-black px-6 py-2 text-black hover:bg-black hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="border border-black dark:border-gray-700 px-6 py-2 text-black dark:text-white bg-white dark:bg-gray-800 hover:bg-black dark:hover:bg-gray-700 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Importing...' : 'Import Transactions'}
                 </button>
@@ -401,9 +408,9 @@ export default function ImportPage() {
         )}
 
         {step === 'complete' && preview && (
-          <div className="border border-black p-6">
-            <h2 className="text-2xl font-light text-black mb-4">Import Complete!</h2>
-            <div className="space-y-2 text-black">
+          <div className="border border-black dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
+            <h2 className="text-2xl font-bold text-black dark:text-white mb-4">Import Complete!</h2>
+            <div className="space-y-2 text-black dark:text-white">
               <p>Imported: {preview.imported || 0} transactions</p>
               <p>Skipped duplicates: {preview.skipped || 0}</p>
             </div>

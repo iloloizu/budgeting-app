@@ -113,9 +113,9 @@ export default function BudgetPage() {
 
   if (!selectedUserId) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-white dark:bg-gray-900">
         <div className="max-w-2xl mx-auto px-4 py-16">
-          <p className="text-black">Redirecting to login...</p>
+          <p className="text-black dark:text-white">Redirecting to login...</p>
         </div>
       </div>
     )
@@ -123,10 +123,10 @@ export default function BudgetPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-white dark:bg-gray-900">
         <Navigation selectedUserId={selectedUserId} />
         <div className="max-w-7xl mx-auto px-4 py-8">
-          <p className="text-black">Loading...</p>
+          <p className="text-black dark:text-white">Loading...</p>
         </div>
       </div>
     )
@@ -142,31 +142,31 @@ export default function BudgetPage() {
   const totalPlannedSavings = totalPlannedIncome - totalPlannedExpenses
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-gray-900">
       <Navigation selectedUserId={selectedUserId} />
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <h1 className="text-4xl font-light text-black mb-8">Monthly Budget</h1>
+        <h1 className="text-4xl font-bold text-black dark:text-white mb-8">Monthly Budget</h1>
 
         <div className="mb-6 flex gap-4">
           <div>
-            <label className="block text-sm font-medium text-black mb-1">
+            <label className="block text-sm font-medium text-black dark:text-white mb-1">
               Year
             </label>
             <input
               type="number"
               value={year}
               onChange={(e) => setYear(parseInt(e.target.value))}
-              className="border border-black px-3 py-2 text-black bg-white"
+              className="border border-black dark:border-gray-700 px-3 py-2 text-black dark:text-white bg-white dark:bg-gray-900"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-black mb-1">
+            <label className="block text-sm font-medium text-black dark:text-white mb-1">
               Month
             </label>
             <select
               value={month}
               onChange={(e) => setMonth(parseInt(e.target.value))}
-              className="border border-black px-3 py-2 text-black bg-white"
+              className="border border-black dark:border-gray-700 px-3 py-2 text-black dark:text-white bg-white dark:bg-gray-900"
             >
               {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                 <option key={m} value={m}>
@@ -192,36 +192,36 @@ export default function BudgetPage() {
           onUpdate={(items) => setBudgetLineItems(items)}
         />
 
-        <div className="mt-8 border-t border-black pt-6">
+        <div className="mt-8 border-t border-black dark:border-gray-700 pt-6">
           <div className="grid grid-cols-3 gap-6 mb-6">
             <div>
-              <div className="text-sm font-medium text-black mb-1">
+              <div className="text-sm font-medium text-black dark:text-white mb-1">
                 Total Planned Income
               </div>
-              <div className="text-2xl font-light text-black">
+              <div className="text-2xl font-light text-black dark:text-white">
                 ${totalPlannedIncome.toFixed(2)}
               </div>
             </div>
             <div>
-              <div className="text-sm font-medium text-black mb-1">
+              <div className="text-sm font-medium text-black dark:text-white mb-1">
                 Total Planned Expenses
               </div>
-              <div className="text-2xl font-light text-black">
+              <div className="text-2xl font-light text-black dark:text-white">
                 ${totalPlannedExpenses.toFixed(2)}
               </div>
             </div>
             <div>
-              <div className="text-sm font-medium text-black mb-1">
+              <div className="text-sm font-medium text-black dark:text-white mb-1">
                 Planned Savings
               </div>
-              <div className="text-2xl font-light text-black">
+              <div className="text-2xl font-light text-black dark:text-white">
                 ${totalPlannedSavings.toFixed(2)}
               </div>
             </div>
           </div>
           <button
             onClick={handleSaveBudget}
-            className="border border-black px-6 py-2 text-black hover:bg-black hover:text-white transition-colors"
+            className="border border-black dark:border-gray-700 px-6 py-2 text-black dark:text-white bg-white dark:bg-gray-800 hover:bg-black dark:hover:bg-gray-700 hover:text-white transition-colors"
           >
             Save Budget
           </button>
@@ -307,11 +307,11 @@ function IncomeSection({
   return (
     <div className="mb-8">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-light text-black">Income Sources</h2>
+        <h2 className="text-2xl font-bold text-black dark:text-white">Income Sources</h2>
         {!showAddForm && (
           <button
             onClick={() => setShowAddForm(true)}
-            className="border border-black px-4 py-2 text-black hover:bg-black hover:text-white transition-colors"
+            className="border border-black dark:border-gray-700 px-4 py-2 text-black dark:text-white bg-white dark:bg-gray-800 hover:bg-black dark:hover:bg-gray-700 hover:text-white transition-colors"
           >
             Add Income Source
           </button>
@@ -322,7 +322,7 @@ function IncomeSection({
         <form onSubmit={handleSubmit} className="mb-4 border border-black p-4">
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium text-black mb-1">
+              <label className="block text-sm font-medium text-black dark:text-white mb-1">
                 Name
               </label>
               <input
@@ -331,12 +331,12 @@ function IncomeSection({
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
                 }
-                className="w-full border border-black px-3 py-2 text-black bg-white"
+                className="w-full border border-black dark:border-gray-700 px-3 py-2 text-black dark:text-white bg-white dark:bg-gray-900"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-black mb-1">
+              <label className="block text-sm font-medium text-black dark:text-white mb-1">
                 Monthly Amount
               </label>
               <input
@@ -346,12 +346,12 @@ function IncomeSection({
                 onChange={(e) =>
                   setFormData({ ...formData, amount: e.target.value })
                 }
-                className="w-full border border-black px-3 py-2 text-black bg-white"
+                className="w-full border border-black dark:border-gray-700 px-3 py-2 text-black dark:text-white bg-white dark:bg-gray-900"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-black mb-1">
+              <label className="block text-sm font-medium text-black dark:text-white mb-1">
                 Type
               </label>
               <select
@@ -359,7 +359,7 @@ function IncomeSection({
                 onChange={(e) =>
                   setFormData({ ...formData, type: e.target.value })
                 }
-                className="w-full border border-black px-3 py-2 text-black bg-white"
+                className="w-full border border-black dark:border-gray-700 px-3 py-2 text-black dark:text-white bg-white dark:bg-gray-900"
               >
                 <option value="salary">Salary</option>
                 <option value="bonus">Bonus</option>
@@ -384,7 +384,7 @@ function IncomeSection({
           <div className="flex gap-2">
             <button
               type="submit"
-              className="border border-black px-4 py-2 text-black hover:bg-black hover:text-white transition-colors"
+              className="border border-black dark:border-gray-700 px-4 py-2 text-black dark:text-white bg-white dark:bg-gray-800 hover:bg-black dark:hover:bg-gray-700 hover:text-white transition-colors"
             >
               {editingId ? 'Update' : 'Add'}
             </button>
@@ -400,7 +400,7 @@ function IncomeSection({
                   isActive: true,
                 })
               }}
-              className="border border-black px-4 py-2 text-black hover:bg-black hover:text-white transition-colors"
+              className="border border-black dark:border-gray-700 px-4 py-2 text-black dark:text-white bg-white dark:bg-gray-800 hover:bg-black dark:hover:bg-gray-700 hover:text-white transition-colors"
             >
               Cancel
             </button>
@@ -408,48 +408,48 @@ function IncomeSection({
         </form>
       )}
 
-      <div className="border border-black">
+      <div className="border border-black dark:border-gray-700 bg-white dark:bg-gray-800">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-black">
-              <th className="text-left p-3 text-sm font-medium text-black">
+                <tr className="border-b border-black dark:border-gray-700">
+                  <th className="text-left p-3 text-sm font-medium text-black dark:text-white">
                 Name
               </th>
-              <th className="text-left p-3 text-sm font-medium text-black">
+              <th className="text-left p-3 text-sm font-medium text-black dark:text-white">
                 Type
               </th>
-              <th className="text-right p-3 text-sm font-medium text-black">
+              <th className="text-right p-3 text-sm font-medium text-black dark:text-white">
                 Monthly Amount
               </th>
-              <th className="text-center p-3 text-sm font-medium text-black">
+              <th className="text-center p-3 text-sm font-medium text-black dark:text-white">
                 Active
               </th>
-              <th className="text-center p-3 text-sm font-medium text-black">
+              <th className="text-center p-3 text-sm font-medium text-black dark:text-white">
                 Actions
               </th>
             </tr>
           </thead>
           <tbody>
             {incomeSources.map((source) => (
-              <tr key={source.id} className="border-b border-black">
-                <td className="p-3 text-black">{source.name}</td>
-                <td className="p-3 text-black capitalize">{source.type}</td>
-                <td className="p-3 text-right text-black">
+              <tr key={source.id} className="border-b border-black dark:border-gray-700">
+                <td className="p-3 text-black dark:text-white">{source.name}</td>
+                <td className="p-3 text-black dark:text-white capitalize">{source.type}</td>
+                    <td className="p-3 text-right text-black dark:text-white">
                   ${source.amount.toFixed(2)}
                 </td>
-                <td className="p-3 text-center text-black">
+                <td className="p-3 text-center text-black dark:text-white">
                   {source.isActive ? 'Yes' : 'No'}
                 </td>
                 <td className="p-3 text-center">
                   <button
                     onClick={() => handleEdit(source)}
-                    className="text-black hover:underline mr-2"
+                    className="text-black dark:text-white hover:underline mr-2"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleDelete(source.id)}
-                    className="text-black hover:underline"
+                    className="text-black dark:text-white hover:underline"
                   >
                     Delete
                   </button>
@@ -521,11 +521,11 @@ function ExpensesSection({
   return (
     <div className="mb-8">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-light text-black">Expenses</h2>
+        <h2 className="text-2xl font-bold text-black dark:text-white">Expenses</h2>
         {!showAddForm && (
           <button
             onClick={() => setShowAddForm(true)}
-            className="border border-black px-4 py-2 text-black hover:bg-black hover:text-white transition-colors"
+            className="border border-black dark:border-gray-700 px-4 py-2 text-black dark:text-white bg-white dark:bg-gray-800 hover:bg-black dark:hover:bg-gray-700 hover:text-white transition-colors"
           >
             Add Category
           </button>
@@ -536,7 +536,7 @@ function ExpensesSection({
         <form onSubmit={handleSubmit} className="mb-4 border border-black p-4">
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium text-black mb-1">
+              <label className="block text-sm font-medium text-black dark:text-white mb-1">
                 Category Name
               </label>
               <input
@@ -545,12 +545,12 @@ function ExpensesSection({
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
                 }
-                className="w-full border border-black px-3 py-2 text-black bg-white"
+                className="w-full border border-black dark:border-gray-700 px-3 py-2 text-black dark:text-white bg-white dark:bg-gray-900"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-black mb-1">
+              <label className="block text-sm font-medium text-black dark:text-white mb-1">
                 Type
               </label>
               <select
@@ -558,7 +558,7 @@ function ExpensesSection({
                 onChange={(e) =>
                   setFormData({ ...formData, type: e.target.value })
                 }
-                className="w-full border border-black px-3 py-2 text-black bg-white"
+                className="w-full border border-black dark:border-gray-700 px-3 py-2 text-black dark:text-white bg-white dark:bg-gray-900"
               >
                 <option value="fixed">Fixed</option>
                 <option value="variable">Variable</option>
@@ -568,7 +568,7 @@ function ExpensesSection({
           <div className="flex gap-2">
             <button
               type="submit"
-              className="border border-black px-4 py-2 text-black hover:bg-black hover:text-white transition-colors"
+              className="border border-black dark:border-gray-700 px-4 py-2 text-black dark:text-white bg-white dark:bg-gray-800 hover:bg-black dark:hover:bg-gray-700 hover:text-white transition-colors"
             >
               Add
             </button>
@@ -578,7 +578,7 @@ function ExpensesSection({
                 setShowAddForm(false)
                 setFormData({ name: '', type: 'fixed' })
               }}
-              className="border border-black px-4 py-2 text-black hover:bg-black hover:text-white transition-colors"
+              className="border border-black dark:border-gray-700 px-4 py-2 text-black dark:text-white bg-white dark:bg-gray-800 hover:bg-black dark:hover:bg-gray-700 hover:text-white transition-colors"
             >
               Cancel
             </button>
@@ -587,26 +587,26 @@ function ExpensesSection({
       )}
 
       <div className="mb-6">
-        <h3 className="text-xl font-light text-black mb-3">Fixed Expenses</h3>
-        <div className="border border-black">
+        <h3 className="text-xl font-bold text-black dark:text-white mb-3">Fixed Expenses</h3>
+        <div className="border border-black dark:border-gray-700 bg-white dark:bg-gray-800">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-black">
-                <th className="text-left p-3 text-sm font-medium text-black">
+                <tr className="border-b border-black dark:border-gray-700">
+                  <th className="text-left p-3 text-sm font-medium text-black dark:text-white">
                   Category
                 </th>
-                <th className="text-right p-3 text-sm font-medium text-black">
+                <th className="text-right p-3 text-sm font-medium text-black dark:text-white">
                   Planned Amount
                 </th>
-                <th className="text-center p-3 text-sm font-medium text-black">
+                <th className="text-center p-3 text-sm font-medium text-black dark:text-white">
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody>
               {fixedCategories.map((category) => (
-                <tr key={category.id} className="border-b border-black">
-                  <td className="p-3 text-black">{category.name}</td>
+                <tr key={category.id} className="border-b border-black dark:border-gray-700">
+                  <td className="p-3 text-black dark:text-white">{category.name}</td>
                   <td className="p-3 text-right">
                     <input
                       type="number"
@@ -618,14 +618,14 @@ function ExpensesSection({
                           [category.id]: parseFloat(e.target.value) || 0,
                         })
                       }
-                      className="w-32 border border-black px-2 py-1 text-right text-black bg-white"
+                      className="w-32 border border-black dark:border-gray-700 px-2 py-1 text-right text-black dark:text-white bg-white dark:bg-gray-900"
                       placeholder="0.00"
                     />
                   </td>
                   <td className="p-3 text-center">
                     <button
                       onClick={() => handleDelete(category.id)}
-                      className="text-black hover:underline"
+                      className="text-black dark:text-white hover:underline"
                     >
                       Delete
                     </button>
@@ -638,28 +638,28 @@ function ExpensesSection({
       </div>
 
       <div>
-        <h3 className="text-xl font-light text-black mb-3">
+        <h3 className="text-xl font-bold text-black dark:text-white mb-3">
           Variable Expenses
         </h3>
-        <div className="border border-black">
+        <div className="border border-black dark:border-gray-700 bg-white dark:bg-gray-800">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-black">
-                <th className="text-left p-3 text-sm font-medium text-black">
+                <tr className="border-b border-black dark:border-gray-700">
+                  <th className="text-left p-3 text-sm font-medium text-black dark:text-white">
                   Category
                 </th>
-                <th className="text-right p-3 text-sm font-medium text-black">
+                <th className="text-right p-3 text-sm font-medium text-black dark:text-white">
                   Planned Amount
                 </th>
-                <th className="text-center p-3 text-sm font-medium text-black">
+                <th className="text-center p-3 text-sm font-medium text-black dark:text-white">
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody>
               {variableCategories.map((category) => (
-                <tr key={category.id} className="border-b border-black">
-                  <td className="p-3 text-black">{category.name}</td>
+                <tr key={category.id} className="border-b border-black dark:border-gray-700">
+                  <td className="p-3 text-black dark:text-white">{category.name}</td>
                   <td className="p-3 text-right">
                     <input
                       type="number"
@@ -671,14 +671,14 @@ function ExpensesSection({
                           [category.id]: parseFloat(e.target.value) || 0,
                         })
                       }
-                      className="w-32 border border-black px-2 py-1 text-right text-black bg-white"
+                      className="w-32 border border-black dark:border-gray-700 px-2 py-1 text-right text-black dark:text-white bg-white dark:bg-gray-900"
                       placeholder="0.00"
                     />
                   </td>
                   <td className="p-3 text-center">
                     <button
                       onClick={() => handleDelete(category.id)}
-                      className="text-black hover:underline"
+                      className="text-black dark:text-white hover:underline"
                     >
                       Delete
                     </button>

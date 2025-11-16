@@ -1,5 +1,6 @@
 import crypto from 'crypto'
 import { PrismaClient } from '@prisma/client'
+import { PASTEL_PALETTE, getNextAvailableColor } from '@/constants/colors'
 
 export interface CSVRow {
   Date: string
@@ -146,14 +147,26 @@ export async function categorizeTransaction(
       (cat) => cat.name.toLowerCase() === parsed.csvCategory!.toLowerCase()
     )
 
-    // If not found, create it
+    // If not found, create it with a color
     if (!category) {
       const isFixed = /rent|insurance|loan|mortgage|subscription/i.test(parsed.csvCategory)
+      
+      // Get used colors for this user to assign a new one
+      const allUserCategories = await prisma.expenseCategory.findMany({
+        where: { userId },
+        select: { colorHex: true },
+      })
+      const usedColors = allUserCategories
+        .map((c) => c.colorHex)
+        .filter((c): c is string => c !== null && c !== undefined)
+      const nextColor = getNextAvailableColor(usedColors)
+      
       category = await prisma.expenseCategory.create({
         data: {
           userId,
           name: parsed.csvCategory,
           type: isFixed ? 'fixed' : 'variable',
+          colorHex: nextColor,
         },
       })
     }
@@ -171,11 +184,22 @@ export async function categorizeTransaction(
     })
 
     if (!uncategorized) {
+      // Get used colors for this user to assign a new one
+      const allUserCategories = await prisma.expenseCategory.findMany({
+        where: { userId },
+        select: { colorHex: true },
+      })
+      const usedColors = allUserCategories
+        .map((c) => c.colorHex)
+        .filter((c): c is string => c !== null && c !== undefined)
+      const nextColor = getNextAvailableColor(usedColors)
+      
       uncategorized = await prisma.expenseCategory.create({
         data: {
           userId,
           name: 'Uncategorized',
           type: 'variable',
+          colorHex: nextColor,
         },
       })
     }
@@ -238,8 +262,14 @@ export function filterByMonth(
   month: number
 ): ParsedTransaction[] {
   return transactions.filter((t) => {
-    const tYear = t.date.getFullYear()
-    const tMonth = t.date.getMonth() + 1
+    // Handle both Date objects and date strings (from JSON)
+    const date = t.date instanceof Date ? t.date : new Date(t.date)
+    if (isNaN(date.getTime())) {
+      // Invalid date, skip
+      return false
+    }
+    const tYear = date.getFullYear()
+    const tMonth = date.getMonth() + 1
     return tYear === year && tMonth === month
   })
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { PASTEL_PALETTE, getNextAvailableColor } from '@/constants/colors'
 
 export async function GET(request: NextRequest) {
   try {
@@ -40,11 +41,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Get used colors for this user to assign a unique one
+    const allUserCategories = await prisma.expenseCategory.findMany({
+      where: { userId },
+      select: { colorHex: true },
+    })
+    const usedColors = allUserCategories
+      .map((c) => c.colorHex)
+      .filter((c): c is string => c !== null && c !== undefined)
+    const nextColor = getNextAvailableColor(usedColors)
+
     const category = await prisma.expenseCategory.create({
       data: {
         userId,
         name,
         type,
+        colorHex: nextColor,
       },
     })
 

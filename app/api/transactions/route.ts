@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { learnCategoryRule } from '@/lib/csv-import'
+import { roundCurrency } from '@/lib/format'
 
 export async function GET(request: NextRequest) {
   try {
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
         userId,
         date: new Date(date),
         description,
-        amount: parseFloat(amount),
+        amount: roundCurrency(parseFloat(amount)),
         type,
         incomeSourceId: type === 'income' ? incomeSourceId : null,
         expenseCategoryId: type === 'expense' ? expenseCategoryId : null,

@@ -49,7 +49,12 @@ export async function POST(request: NextRequest) {
 
     if (transactionsJson) {
       // Use pre-processed transactions (from preview with user edits)
-      parsedTransactions = JSON.parse(transactionsJson)
+      const parsed = JSON.parse(transactionsJson)
+      // Convert date strings back to Date objects
+      parsedTransactions = parsed.map((t: any) => ({
+        ...t,
+        date: new Date(t.date),
+      }))
     } else if (file) {
       // Parse CSV file
       const text = await file.text()
