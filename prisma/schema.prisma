@@ -1,0 +1,95 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  incomeSources    IncomeSource[]
+  expenseCategories ExpenseCategory[]
+  monthlyBudgets   MonthlyBudget[]
+  transactions     Transaction[]
+}
+
+model IncomeSource {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  amount    Float
+  type      String   // "salary", "bonus", "freelance", "other"
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+}
+
+model ExpenseCategory {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  type      String   // "fixed" | "variable"
+  createdAt DateTime @default(now())
+
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budgetLineItems BudgetLineItem[]
+  transactions    Transaction[]
+}
+
+model MonthlyBudget {
+  id                  String   @id @default(cuid())
+  userId              String
+  year                Int
+  month               Int
+  totalPlannedIncome  Float    @default(0)
+  totalPlannedExpenses Float   @default(0)
+  totalPlannedSavings Float    @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budgetLineItems BudgetLineItem[]
+
+  @@unique([userId, year, month])
+}
+
+model BudgetLineItem {
+  id               String   @id @default(cuid())
+  monthlyBudgetId  String
+  expenseCategoryId String
+  plannedAmount    Float
+
+  monthlyBudget   MonthlyBudget  @relation(fields: [monthlyBudgetId], references: [id], onDelete: Cascade)
+  expenseCategory ExpenseCategory @relation(fields: [expenseCategoryId], references: [id], onDelete: Cascade)
+
+  @@unique([monthlyBudgetId, expenseCategoryId])
+}
+
+model Transaction {
+  id               String   @id @default(cuid())
+  userId           String
+  date             DateTime
+  description      String
+  amount           Float
+  type             String   // "income" | "expense"
+  incomeSourceId   String?
+  expenseCategoryId String?
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incomeSource   IncomeSource?  @relation(fields: [incomeSourceId], references: [id], onDelete: SetNull)
+  expenseCategory ExpenseCategory? @relation(fields: [expenseCategoryId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+}
+
