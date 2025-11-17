@@ -30,9 +30,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  let categoryName = 'this name' // Store name for error handling
+  
   try {
     const body = await request.json()
     const { userId, name, type } = body
+    categoryName = name || 'this name' // Store for error handling
 
     if (!userId || !name || !type) {
       return NextResponse.json(
@@ -85,7 +88,7 @@ export async function POST(request: NextRequest) {
     // Handle unique constraint violation
     if (error.code === 'P2002') {
       return NextResponse.json(
-        { error: `A category with the name "${body.name}" already exists` },
+        { error: `A category with the name "${categoryName}" already exists` },
         { status: 409 }
       )
     }

@@ -30,9 +30,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  let incomeSourceName = 'this name' // Store name for error handling
+  
   try {
     const body = await request.json()
     const { userId, name, amount, type, isActive } = body
+    incomeSourceName = name || 'this name' // Store for error handling
 
     if (!userId || !name || amount === undefined || !type) {
       return NextResponse.json(
@@ -76,7 +79,7 @@ export async function POST(request: NextRequest) {
     // Handle unique constraint violation
     if (error.code === 'P2002') {
       return NextResponse.json(
-        { error: `An income source with the name "${body.name}" already exists` },
+        { error: `An income source with the name "${incomeSourceName}" already exists` },
         { status: 409 }
       )
     }
@@ -89,9 +92,12 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  let incomeSourceName = 'this name' // Store name for error handling
+  
   try {
     const body = await request.json()
     const { id, name, amount, type, isActive } = body
+    incomeSourceName = name || 'this name' // Store for error handling
 
     if (!id) {
       return NextResponse.json(
@@ -145,7 +151,7 @@ export async function PUT(request: NextRequest) {
     // Handle unique constraint violation
     if (error.code === 'P2002') {
       return NextResponse.json(
-        { error: `An income source with the name "${body.name}" already exists` },
+        { error: `An income source with the name "${incomeSourceName}" already exists` },
         { status: 409 }
       )
     }
