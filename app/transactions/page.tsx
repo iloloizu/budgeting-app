@@ -34,6 +34,7 @@ export default function TransactionsPage() {
   const [recentlyChangedId, setRecentlyChangedId] = useState<string | null>(null)
   const [showScrollToButton, setShowScrollToButton] = useState(false)
   const transactionRefs = useRef<Record<string, HTMLDivElement | HTMLTableRowElement | null>>({})
+  const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(new Set())
   const modal = useModal()
 
   const fetchTransactions = useCallback(async () => {
@@ -97,6 +98,8 @@ export default function TransactionsPage() {
   useEffect(() => {
     if (selectedUserId) {
       fetchTransactions()
+      // Clear selection when month/year changes
+      setSelectedTransactionIds(new Set())
     }
   }, [selectedUserId, year, month, fetchTransactions])
 
@@ -147,6 +150,11 @@ export default function TransactionsPage() {
       async () => {
         // Optimistically remove from UI
         setTransactions((prev) => prev.filter((t) => t.id !== id))
+        setSelectedTransactionIds((prev) => {
+          const newSet = new Set(prev)
+          newSet.delete(id)
+          return newSet
+        })
 
         try {
           const res = await fetch(`/api/transactions?id=${id}`, { method: 'DELETE' })
@@ -165,6 +173,68 @@ export default function TransactionsPage() {
         }
       },
       'Delete Transaction'
+    )
+  }
+
+  const handleSelectAll = () => {
+    if (selectedTransactionIds.size === transactions.length) {
+      // Deselect all
+      setSelectedTransactionIds(new Set())
+    } else {
+      // Select all
+      setSelectedTransactionIds(new Set(transactions.map((t) => t.id)))
+    }
+  }
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedTransactionIds((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(id)) {
+        newSet.delete(id)
+      } else {
+        newSet.add(id)
+      }
+      return newSet
+    })
+  }
+
+  const handleDeleteAll = () => {
+    const count = selectedTransactionIds.size
+    if (count === 0) {
+      modal.showWarning('No transactions selected')
+      return
+    }
+
+    modal.showConfirm(
+      `Are you sure you want to delete ${count} transaction${count > 1 ? 's' : ''}? This action cannot be undone.`,
+      async () => {
+        const idsArray = Array.from(selectedTransactionIds)
+        
+        // Optimistically remove from UI
+        setTransactions((prev) => prev.filter((t) => !selectedTransactionIds.has(t.id)))
+        setSelectedTransactionIds(new Set())
+
+        try {
+          const res = await fetch(`/api/transactions?ids=${idsArray.join(',')}`, {
+            method: 'DELETE',
+          })
+
+          if (!res.ok) {
+            // If delete failed, refresh to restore accurate state
+            await fetchTransactions()
+            modal.showError(`Failed to delete ${count} transaction${count > 1 ? 's' : ''}`)
+          } else {
+            const result = await res.json()
+            modal.showSuccess(`Successfully deleted ${result.deletedCount || count} transaction${count > 1 ? 's' : ''}`)
+          }
+        } catch (error) {
+          console.error('Error deleting transactions:', error)
+          // Revert on error
+          await fetchTransactions()
+          modal.showError('Failed to delete transactions')
+        }
+      },
+      'Delete All Selected'
     )
   }
 
@@ -701,6 +771,59 @@ export default function TransactionsPage() {
             </select>
           </div>
           <div className="flex items-end gap-2 flex-wrap">
+            {transactions.length > 0 && (
+              <>
+                <button
+                  onClick={handleSelectAll}
+                  className="border border-black dark:border-gray-700 px-4 py-2 text-sm sm:text-base text-black dark:text-white bg-white dark:bg-gray-800 hover:bg-black dark:hover:bg-gray-700 hover:text-white transition-colors"
+                  title="Select all transactions for this month"
+                >
+                  {selectedTransactionIds.size === transactions.length ? 'Deselect All' : 'Select All'}
+                </button>
+                {selectedTransactionIds.size > 0 && (
+                  <button
+                    onClick={handleDeleteAll}
+                    className="border border-red-600 dark:border-red-500 px-4 py-2 text-sm sm:text-base text-red-600 dark:text-red-400 bg-white dark:bg-gray-800 hover:bg-red-600 dark:hover:bg-red-700 hover:text-white transition-colors"
+                    title={`Delete ${selectedTransactionIds.size} selected transaction${selectedTransactionIds.size > 1 ? 's' : ''}`}
+                  >
+                    Delete All ({selectedTransactionIds.size})
+                  </button>
+                )}
+                <button
+                  onClick={async () => {
+                    if (!selectedUserId) return
+                    modal.showConfirm(
+                      'This will permanently delete all "Payment Thank You-Mobile", "Credit Card Payment", "Payment to Chase card ending", and "AMERICAN EXPRESS ACH PMT" transactions. Investment/Robinhood transactions will be kept and categorized as "Investing". This action cannot be undone. Continue?',
+                      async () => {
+                        try {
+                          const res = await fetch('/api/transactions/cleanup-excluded', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ userId: selectedUserId }),
+                          })
+                          if (res.ok) {
+                            const result = await res.json()
+                            modal.showSuccess(result.message || `Deleted ${result.deletedCount} excluded transaction${result.deletedCount !== 1 ? 's' : ''}`)
+                            await fetchTransactions()
+                          } else {
+                            const error = await res.json()
+                            modal.showError(`Failed to cleanup: ${error.error || 'Unknown error'}`)
+                          }
+                        } catch (error) {
+                          console.error('Error cleaning up excluded transactions:', error)
+                          modal.showError('Failed to cleanup excluded transactions')
+                        }
+                      },
+                      'Cleanup Excluded Transactions'
+                    )
+                  }}
+                  className="border border-orange-600 dark:border-orange-500 px-4 py-2 text-sm sm:text-base text-orange-600 dark:text-orange-400 bg-white dark:bg-gray-800 hover:bg-orange-600 dark:hover:bg-orange-700 hover:text-white transition-colors"
+                  title="Remove all 'Payment Thank You-Mobile', 'Credit Card Payment', 'Payment to Chase card ending', and 'AMERICAN EXPRESS ACH PMT' transactions (Investment/Robinhood are kept and categorized as 'Investing')"
+                >
+                  Cleanup Excluded
+                </button>
+              </>
+            )}
             <button
               onClick={() => handleBatchCategorize('smart')}
               disabled={batchCategorizing !== null}
@@ -928,6 +1051,7 @@ export default function TransactionsPage() {
           {sortedTransactions.map((transaction) => {
             const categoryColor = getCategoryColor(transaction)
             const rowTint = getLightTint(categoryColor, 0.45)
+            const isSelected = selectedTransactionIds.has(transaction.id)
 
             return (
               <div
@@ -935,24 +1059,33 @@ export default function TransactionsPage() {
                 ref={(el) => {
                   transactionRefs.current[transaction.id] = el
                 }}
-                className="border border-black dark:border-gray-700 p-4 bg-white dark:bg-gray-800 transition-all duration-300"
+                className={`border border-black dark:border-gray-700 p-4 bg-white dark:bg-gray-800 transition-all duration-300 ${isSelected ? 'ring-2 ring-blue-500 dark:ring-blue-400' : ''}`}
                 style={{ backgroundColor: rowTint }}
               >
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-black dark:text-white">
-                      {transaction.description}
+                <div className="flex items-start gap-2 mb-2">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => handleToggleSelect(transaction.id)}
+                    className="mt-1 w-4 h-4 border border-black dark:border-gray-700 bg-white dark:bg-gray-800 text-black dark:text-white cursor-pointer"
+                    aria-label={`Select transaction ${transaction.description}`}
+                  />
+                  <div className="flex-1 flex justify-between items-start">
+                    <div>
+                      <div className="text-sm font-medium text-black dark:text-white">
+                        {transaction.description}
+                      </div>
+                      <div className="text-xs text-black dark:text-gray-400 mt-1">
+                        {new Date(transaction.date).toLocaleDateString()}
+                      </div>
                     </div>
-                    <div className="text-xs text-black dark:text-gray-400 mt-1">
-                      {new Date(transaction.date).toLocaleDateString()}
-                    </div>
-                  </div>
-                  <div className="text-right ml-2">
-                    <div className="text-lg font-semibold text-black dark:text-white">
-                      ${formatCurrency(transaction.amount)}
-                    </div>
-                    <div className="text-xs text-black dark:text-gray-400 capitalize">
-                      {transaction.type}
+                    <div className="text-right ml-2">
+                      <div className="text-lg font-semibold text-black dark:text-white">
+                        ${formatCurrency(transaction.amount)}
+                      </div>
+                      <div className="text-xs text-black dark:text-gray-400 capitalize">
+                        {transaction.type}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1103,10 +1236,19 @@ export default function TransactionsPage() {
 
         {/* Desktop Table View */}
         <div className="hidden md:block border border-black dark:border-gray-700 bg-white dark:bg-gray-800">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-black dark:border-gray-700">
-                  <th className="text-left p-3 text-sm font-medium text-black dark:text-white">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-black dark:border-gray-700">
+                <th className="text-left p-3 text-sm font-medium text-black dark:text-white w-12">
+                  <input
+                    type="checkbox"
+                    checked={selectedTransactionIds.size === transactions.length && transactions.length > 0}
+                    onChange={handleSelectAll}
+                    className="w-4 h-4 border border-black dark:border-gray-700 bg-white dark:bg-gray-800 text-black dark:text-white cursor-pointer"
+                    aria-label="Select all transactions"
+                  />
+                </th>
+                <th className="text-left p-3 text-sm font-medium text-black dark:text-white">
                     <button
                       onClick={() => handleSort('date')}
                       className="flex items-center gap-1 hover:opacity-70"
@@ -1170,6 +1312,7 @@ export default function TransactionsPage() {
                 {sortedTransactions.map((transaction) => {
                   const categoryColor = getCategoryColor(transaction)
                   const rowTint = getLightTint(categoryColor, 0.45)
+                  const isSelected = selectedTransactionIds.has(transaction.id)
 
                   return (
                   <tr
@@ -1177,9 +1320,18 @@ export default function TransactionsPage() {
                     ref={(el) => {
                       transactionRefs.current[transaction.id] = el
                     }}
-                    className="border-b border-black dark:border-gray-700 transition-all duration-300"
+                    className={`border-b border-black dark:border-gray-700 transition-all duration-300 ${isSelected ? 'ring-2 ring-blue-500 dark:ring-blue-400' : ''}`}
                     style={{ backgroundColor: rowTint }}
                   >
+                  <td className="p-3">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleToggleSelect(transaction.id)}
+                      className="w-4 h-4 border border-black dark:border-gray-700 bg-white dark:bg-gray-800 text-black dark:text-white cursor-pointer"
+                      aria-label={`Select transaction ${transaction.description}`}
+                    />
+                  </td>
                   <td className="p-3 text-sm text-black dark:text-white">
                     {new Date(transaction.date).toLocaleDateString()}
                   </td>

@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
         amount: true,
         type: true,
         merchantName: true,
+        csvCategory: true, // Include csvCategory for Robinhood/Investment detection
         expenseCategoryId: true,
         incomeSourceId: true,
         fingerprint: true,
@@ -54,8 +55,28 @@ export async function POST(request: NextRequest) {
     // A transaction is uncategorized if:
     // - For expenses: expenseCategoryId is null/undefined, OR expenseCategory name is "Uncategorized" or "N/A"
     // - For income: incomeSourceId is null/undefined
+    // Also include transactions that might be Robinhood/Investment that need to be recategorized
     const transactions = allTransactions.filter((t) => {
       if (t.type === 'expense') {
+        // Check if this is a Robinhood/Investment transaction that should be recategorized
+        const desc = (t.description || '').toLowerCase()
+        const merchant = (t.merchantName || '').toLowerCase()
+        const csvCat = (t.csvCategory || '').toLowerCase()
+        const isRobinhood = desc.includes('robinhood') || merchant.includes('robinhood') || 
+                           desc.includes('robin hood') || merchant.includes('robin hood')
+        const isInvestment = csvCat === 'investment' || csvCat === 'investing'
+        
+        // If it's Robinhood/Investment, check if it's already categorized as "Investing"
+        if (isRobinhood || isInvestment) {
+          const currentCategoryName = t.expenseCategory?.name?.toLowerCase() || ''
+          // If not already "Investing", include it for recategorization
+          if (currentCategoryName !== 'investing') {
+            return true
+          }
+          // Already categorized as "Investing", skip it
+          return false
+        }
+        
         // Expense is uncategorized if:
         // 1. No category ID assigned, OR
         // 2. Category exists but is named "Uncategorized" or "N/A"
@@ -127,13 +148,14 @@ export async function POST(request: NextRequest) {
           type: transaction.type as 'income' | 'expense',
           description: description,
           merchantName: merchantName,
-          csvCategory: undefined, // Optional field, not needed for smart categorization
+          csvCategory: transaction.csvCategory || undefined, // Include csvCategory for Robinhood/Investment detection
           fingerprint: '', // Not needed for categorization, but required by type
         }
         
-        console.log(`[Smart Categorize] Processing transaction ${transaction.id}: merchantName="${merchantName}", description="${description}"`)
+        console.log(`[Smart Categorize] Processing transaction ${transaction.id}: merchantName="${merchantName}", description="${description}", csvCategory="${transaction.csvCategory || 'none'}"`)
 
         // Step 1: Try existing categorization rules first (from the rules page)
+        // This will also check for Robinhood/Investment transactions and categorize them as "Investing"
         let result = await categorizeTransaction(parsed, userId, prisma)
 
         // Check if a rule matched

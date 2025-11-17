@@ -97,6 +97,15 @@ model Transaction {
   accountNumber    String?
   institutionName  String?
   merchantName     String?  // Original merchant name from CSV
+  // Additional CSV fields
+  originalDate     DateTime? // Original Date from CSV
+  accountType      String?   // Account Type from CSV
+  customName       String?   // Custom Name from CSV
+  note             String?   // Note from CSV
+  ignoredFrom      String?   // Ignored From from CSV
+  taxDeductible    Boolean?  // Tax Deductible from CSV
+  transactionTags  String?   // Transaction Tags from CSV (comma-separated)
+  csvCategory      String?   // Original Category from CSV
 
   user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   incomeSource   IncomeSource?  @relation(fields: [incomeSourceId], references: [id], onDelete: SetNull)

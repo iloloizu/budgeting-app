@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { roundCurrency } from '@/lib/format'
+import { shouldExcludeTransaction } from '@/lib/csv-import'
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,6 +34,9 @@ export async function GET(request: NextRequest) {
       },
       select: {
         amount: true,
+        description: true,
+        merchantName: true,
+        csvCategory: true,
         expenseCategory: {
           select: {
             id: true,
@@ -42,10 +46,20 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // Group by category in a single O(n) pass
+    // Group by category in a single O(n) pass, excluding filtered transactions
     const categoryTotals: Record<string, { name: string; total: number }> = {}
 
     for (const transaction of transactions) {
+      // Skip excluded transactions
+      if (shouldExcludeTransaction(
+        transaction.description,
+        transaction.merchantName || undefined,
+        transaction.csvCategory || undefined,
+        transaction.expenseCategory?.name
+      )) {
+        continue
+      }
+
       if (transaction.expenseCategory) {
         const categoryId = transaction.expenseCategory.id
         const categoryName = transaction.expenseCategory.name

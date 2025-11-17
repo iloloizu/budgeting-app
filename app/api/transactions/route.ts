@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { learnCategoryRule } from '@/lib/csv-import'
+import { learnCategoryRule, shouldExcludeTransaction } from '@/lib/csv-import'
 import { roundCurrency } from '@/lib/format'
 
 export async function GET(request: NextRequest) {
@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
         accountName: true,
         accountNumber: true,
         institutionName: true,
+        csvCategory: true,
         createdAt: true,
         incomeSource: {
           select: {
@@ -68,7 +69,17 @@ export async function GET(request: NextRequest) {
       orderBy: { date: 'desc' },
     })
 
-    return NextResponse.json(transactions)
+    // Filter out excluded transactions
+    const filteredTransactions = transactions.filter((t) => 
+      !shouldExcludeTransaction(
+        t.description,
+        t.merchantName || undefined,
+        t.csvCategory || undefined,
+        t.expenseCategory?.name
+      )
+    )
+
+    return NextResponse.json(filteredTransactions)
   } catch (error) {
     console.error('Error fetching transactions:', error)
     return NextResponse.json(
@@ -239,6 +250,26 @@ export async function DELETE(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
     const id = searchParams.get('id')
+    const ids = searchParams.get('ids') // Comma-separated list of IDs for bulk delete
+
+    if (ids) {
+      // Bulk delete
+      const idArray = ids.split(',').filter((id) => id.trim())
+      if (idArray.length === 0) {
+        return NextResponse.json(
+          { error: 'At least one id is required for bulk delete' },
+          { status: 400 }
+        )
+      }
+
+      const result = await prisma.transaction.deleteMany({
+        where: {
+          id: { in: idArray },
+        },
+      })
+
+      return NextResponse.json({ success: true, deletedCount: result.count })
+    }
 
     if (!id) {
       return NextResponse.json(

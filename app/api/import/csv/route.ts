@@ -5,6 +5,8 @@ import {
   filterByMonth,
   categorizeTransaction,
   learnCategoryRule,
+  shouldExcludeTransaction,
+  shouldSkipImport,
   type CSVRow,
   type ParsedTransaction,
 } from '@/lib/csv-import'
@@ -147,6 +149,12 @@ export async function POST(request: NextRequest) {
     const duplicates: ParsedTransaction[] = []
 
     for (const parsed of filteredTransactions) {
+      // Skip transactions that should not be imported at all (Payment Thank You-Mobile, Credit Card Payment)
+      if (shouldSkipImport(parsed.description, parsed.merchantName, parsed.csvCategory)) {
+        console.log(`[CSV Import] Skipping excluded transaction (not imported): ${parsed.description || parsed.merchantName}`)
+        continue
+      }
+
       // Check if duplicate (only if fingerprint exists)
       if (parsed.fingerprint) {
         try {
@@ -181,6 +189,18 @@ export async function POST(request: NextRequest) {
       }
       const categorization = await categorizeTransaction(parsed, userId, prisma)
 
+      // Double-check: exclude if category is "Credit Card Payment"
+      if (categorization.categoryId) {
+        const category = await prisma.expenseCategory.findUnique({
+          where: { id: categorization.categoryId },
+          select: { name: true },
+        })
+        if (category && shouldExcludeTransaction(undefined, undefined, undefined, category.name)) {
+          console.log(`[CSV Import] Skipping transaction with excluded category: ${category.name}`)
+          continue
+        }
+      }
+
       toImport.push({
         parsed,
         categoryId: categorization.categoryId,
@@ -210,6 +230,15 @@ export async function POST(request: NextRequest) {
             accountNumber: item.parsed.accountNumber || null,
             institutionName: item.parsed.institutionName || null,
             merchantName: item.parsed.merchantName || null,
+            // Additional CSV fields
+            originalDate: item.parsed.originalDate || null,
+            accountType: item.parsed.accountType || null,
+            customName: item.parsed.customName || null,
+            note: item.parsed.note || null,
+            ignoredFrom: item.parsed.ignoredFrom || null,
+            taxDeductible: item.parsed.taxDeductible ?? null,
+            transactionTags: item.parsed.transactionTags || null,
+            csvCategory: item.parsed.csvCategory || null,
           }
 
           // Only add fingerprint if it exists (for deduplication)

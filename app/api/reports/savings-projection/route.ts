@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { roundCurrency } from '@/lib/format'
+import { shouldExcludeTransaction } from '@/lib/csv-import'
 
 export const runtime = 'nodejs'
 
@@ -98,13 +99,31 @@ export async function GET(request: NextRequest) {
         date: true,
         amount: true,
         type: true,
+        description: true,
+        merchantName: true,
+        csvCategory: true,
+        expenseCategory: {
+          select: {
+            name: true,
+          },
+        },
       },
     })
 
-    // Group transactions by month in a single O(n) pass
+    // Group transactions by month in a single O(n) pass, excluding filtered transactions
     const transactionMap = new Map<string, { income: number; expenses: number }>()
     
     for (const transaction of transactions) {
+      // Skip excluded transactions
+      if (shouldExcludeTransaction(
+        transaction.description,
+        transaction.merchantName || undefined,
+        transaction.csvCategory || undefined,
+        transaction.expenseCategory?.name
+      )) {
+        continue
+      }
+
       const tYear = transaction.date.getFullYear()
       const tMonth = transaction.date.getMonth() + 1
       const key = `${tYear}-${tMonth}`

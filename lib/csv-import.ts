@@ -12,6 +12,12 @@ export interface CSVRow {
   'Account Name'?: string
   'Account Number'?: string
   'Institution Name'?: string
+  'Account Type'?: string
+  'Custom Name'?: string
+  Note?: string
+  'Ignored From'?: string
+  'Tax Deductible'?: string
+  'Transaction Tags'?: string
   [key: string]: string | undefined
 }
 
@@ -25,12 +31,109 @@ export interface ParsedTransaction {
   accountName?: string
   accountNumber?: string
   institutionName?: string
+  originalDate?: Date
+  accountType?: string
+  customName?: string
+  note?: string
+  ignoredFrom?: string
+  taxDeductible?: boolean
+  transactionTags?: string
   fingerprint: string
 }
 
 export function normalizeMerchant(merchant: string | undefined): string {
   if (!merchant) return ''
   return merchant.toUpperCase().trim().replace(/\s+/g, ' ')
+}
+
+/**
+ * Check if a transaction should be excluded from import and charts
+ * Excludes:
+ * - Transactions with "Payment Thank You-Mobile" in description
+ * - Transactions with "Credit Card Payment" category
+ * - Transactions with "Payment to Chase card ending" in description
+ * - Transactions with "AMERICAN EXPRESS ACH PMT" in description
+ * - Transactions with "Investment" category or Robinhood-related items
+ */
+export function shouldExcludeTransaction(
+  description?: string,
+  merchantName?: string,
+  csvCategory?: string,
+  categoryName?: string
+): boolean {
+  const desc = (description || '').toLowerCase()
+  const merchant = (merchantName || '').toLowerCase()
+  const csvCat = (csvCategory || '').toLowerCase()
+  const catName = (categoryName || '').toLowerCase()
+
+  // Exclude "Payment Thank You-Mobile"
+  if (desc.includes('payment thank you-mobile') || merchant.includes('payment thank you-mobile')) {
+    return true
+  }
+
+  // Exclude "Credit Card Payment" category
+  if (csvCat === 'credit card payment' || catName === 'credit card payment') {
+    return true
+  }
+
+  // Exclude "Payment to Chase card ending" transactions
+  if (desc.includes('payment to chase card ending') || merchant.includes('payment to chase card ending')) {
+    return true
+  }
+
+  // Exclude "AMERICAN EXPRESS ACH PMT" transactions
+  if (desc.includes('american express ach pmt') || merchant.includes('american express ach pmt')) {
+    return true
+  }
+
+  // Exclude "Investment" category
+  if (csvCat === 'investment' || catName === 'investment' || catName === 'investing') {
+    return true
+  }
+
+  // Exclude Robinhood-related transactions
+  if (desc.includes('robinhood') || merchant.includes('robinhood') || 
+      desc.includes('robin hood') || merchant.includes('robin hood')) {
+    return true
+  }
+
+  return false
+}
+
+/**
+ * Check if a transaction should be completely excluded from import (not just charts)
+ * These transactions won't be imported at all
+ */
+export function shouldSkipImport(
+  description?: string,
+  merchantName?: string,
+  csvCategory?: string
+): boolean {
+  const desc = (description || '').toLowerCase()
+  const merchant = (merchantName || '').toLowerCase()
+  const csvCat = (csvCategory || '').toLowerCase()
+
+  // Skip "Payment Thank You-Mobile" completely
+  if (desc.includes('payment thank you-mobile') || merchant.includes('payment thank you-mobile')) {
+    return true
+  }
+
+  // Skip "Credit Card Payment" completely
+  if (csvCat === 'credit card payment') {
+    return true
+  }
+
+  // Skip "Payment to Chase card ending" transactions
+  if (desc.includes('payment to chase card ending') || merchant.includes('payment to chase card ending')) {
+    return true
+  }
+
+  // Skip "AMERICAN EXPRESS ACH PMT" transactions
+  if (desc.includes('american express ach pmt') || merchant.includes('american express ach pmt')) {
+    return true
+  }
+
+  return false
 }
 
 /**
@@ -109,6 +212,22 @@ export function parseCSVRow(row: CSVRow, userId: string): ParsedTransaction | nu
     const merchantName = row.Name || row.Description || ''
     const description = row.Description || row.Name || ''
 
+    // Parse original date if provided
+    let originalDate: Date | undefined
+    if (row['Original Date']) {
+      const origDate = new Date(row['Original Date'])
+      if (!isNaN(origDate.getTime())) {
+        originalDate = origDate
+      }
+    }
+
+    // Parse tax deductible (boolean)
+    let taxDeductible: boolean | undefined
+    if (row['Tax Deductible']) {
+      const taxDeductibleStr = row['Tax Deductible'].toLowerCase().trim()
+      taxDeductible = taxDeductibleStr === 'true' || taxDeductibleStr === 'yes' || taxDeductibleStr === '1'
+    }
+
     // Generate fingerprint
     const fingerprint = generateFingerprint(
       userId,
@@ -128,6 +247,13 @@ export function parseCSVRow(row: CSVRow, userId: string): ParsedTransaction | nu
       accountName: row['Account Name'],
       accountNumber: row['Account Number'],
       institutionName: row['Institution Name'],
+      originalDate,
+      accountType: row['Account Type'],
+      customName: row['Custom Name'],
+      note: row.Note,
+      ignoredFrom: row['Ignored From'],
+      taxDeductible,
+      transactionTags: row['Transaction Tags'],
       fingerprint,
     }
   } catch (error) {
@@ -146,6 +272,45 @@ export async function categorizeTransaction(
   }
   
   const normalizedMerchant = normalizeMerchant(parsed.merchantName)
+  const desc = (parsed.description || '').toLowerCase()
+  const merchant = (parsed.merchantName || '').toLowerCase()
+
+  // Special handling: Auto-categorize Robinhood/Investment items as "Investing"
+  const isRobinhood = desc.includes('robinhood') || merchant.includes('robinhood') || 
+                      desc.includes('robin hood') || merchant.includes('robin hood')
+  const isInvestment = parsed.csvCategory?.toLowerCase() === 'investment' || 
+                       parsed.csvCategory?.toLowerCase() === 'investing'
+
+  if ((isRobinhood || isInvestment) && parsed.type === 'expense') {
+    const allCategories = await prisma.expenseCategory.findMany({
+      where: { userId },
+      select: { id: true, name: true, colorHex: true },
+    })
+    
+    let investingCategory = allCategories.find(
+      (cat) => cat.name.toLowerCase() === 'investing'
+    )
+
+    // Create "Investing" category if it doesn't exist
+    if (!investingCategory) {
+      const usedColors = allCategories
+        .map((c) => c.colorHex)
+        .filter((c): c is string => c !== null && c !== undefined)
+      const nextColor = getNextAvailableColor(usedColors)
+      
+      investingCategory = await prisma.expenseCategory.create({
+        data: {
+          userId,
+          name: 'Investing',
+          type: 'variable',
+          colorHex: nextColor,
+        },
+        select: { id: true, name: true, colorHex: true },
+      })
+    }
+
+    return { categoryId: investingCategory.id }
+  }
 
   // IMPORTANT: Rules should ONLY apply when the transaction is uncategorized
   // Check if CSV category is provided and is NOT "Uncategorized" or "N/A"
