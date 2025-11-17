@@ -647,10 +647,25 @@ function ExpensesSection({
     (c) => c.type === 'variable'
   )
 
+  // Calculate total fixed expenses percentage
+  const totalFixedExpenses = fixedCategories.reduce((sum, cat) => {
+    return sum + (budgetLineItems[cat.id] || 0)
+  }, 0)
+  const fixedExpensesPercentage = totalPlannedExpenses > 0
+    ? (totalFixedExpenses / totalPlannedExpenses) * 100
+    : 0
+
   return (
     <div className="mb-8">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold text-black dark:text-white">Expenses</h2>
+        <div>
+          <h2 className="text-2xl font-bold text-black dark:text-white">Expenses</h2>
+          {totalPlannedExpenses > 0 && (
+            <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              Fixed Expenses Total: ${formatCurrency(totalFixedExpenses)} ({fixedExpensesPercentage.toFixed(1)}% of total expenses)
+            </div>
+          )}
+        </div>
         {!showAddForm && (
           <button
             onClick={() => setShowAddForm(true)}
@@ -716,7 +731,14 @@ function ExpensesSection({
       )}
 
       <div className="mb-4 sm:mb-6">
-        <h3 className="text-lg sm:text-xl font-bold text-black dark:text-white mb-3">Fixed Expenses</h3>
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="text-lg sm:text-xl font-bold text-black dark:text-white">Fixed Expenses</h3>
+          {totalPlannedExpenses > 0 && (
+            <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
+              Total: {fixedExpensesPercentage.toFixed(1)}%
+            </div>
+          )}
+        </div>
         
         {/* Mobile Card View */}
         <div className="md:hidden space-y-3">

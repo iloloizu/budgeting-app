@@ -330,12 +330,58 @@ export default function VariableExpensesBuckets({
     return (totalPlannedSavings * percentage) / 100
   }, [totalPlannedSavings])
 
+  // Calculate the current sum of category amounts in a bucket
+  const getBucketCategorySum = useCallback((bucket: ExpenseBucket) => {
+    return bucket.bucketCategories.reduce((sum, bc) => {
+      return sum + (budgetLineItems[bc.expenseCategory.id] || 0)
+    }, 0)
+  }, [budgetLineItems])
+
+  // Calculate total allocated percentage across all buckets
+  const totalAllocatedPercentage = useMemo(() => {
+    return buckets.reduce((sum, bucket) => sum + bucket.percentage, 0)
+  }, [buckets])
+
+  // Calculate remaining planned savings
+  const remainingSavings = useMemo(() => {
+    return totalPlannedSavings - buckets.reduce((sum, bucket) => sum + getBucketAmount(bucket.percentage), 0)
+  }, [totalPlannedSavings, buckets, getBucketAmount])
+
+  // Calculate total variable expenses (sum of all category amounts in buckets)
+  const totalVariableExpenses = useMemo(() => {
+    return buckets.reduce((sum, bucket) => sum + getBucketCategorySum(bucket), 0)
+  }, [buckets, getBucketCategorySum])
+
+  // Handle category amount change within a bucket
+  // This is a guide, not a strict constraint - users can exceed bucket totals
+  const handleCategoryAmountChange = useCallback((
+    categoryId: string,
+    newAmount: number,
+    bucket: ExpenseBucket
+  ) => {
+    // Simply update the category amount - no strict constraints
+    // The UI will show if it's over/under as a guide
+    const updated = {
+      ...budgetLineItems,
+      [categoryId]: Math.max(0, newAmount), // Just ensure non-negative
+    }
+
+    onUpdate(updated)
+  }, [budgetLineItems, onUpdate])
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg sm:text-xl font-bold text-black dark:text-white">
-          Variable Expenses (Buckets)
-        </h3>
+        <div>
+          <h3 className="text-lg sm:text-xl font-bold text-black dark:text-white">
+            Variable Expenses (Buckets)
+          </h3>
+          {totalPlannedExpenses > 0 && (
+            <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              Variable Expenses Total: ${formatCurrency(totalVariableExpenses)} ({((totalVariableExpenses / totalPlannedExpenses) * 100).toFixed(1)}% of total expenses)
+            </div>
+          )}
+        </div>
         {!showBucketForm && (
           <button
             onClick={() => setShowBucketForm(true)}
@@ -420,7 +466,7 @@ export default function VariableExpensesBuckets({
                 className="p-4 border-b-2 border-black dark:border-gray-700"
                 style={{ backgroundColor: bucketTint, borderColor: bucketColor }}
               >
-                <div className="flex justify-between items-start mb-2">
+                <div className="flex justify-between items-start mb-3">
                   <div className="flex-1">
                     {editingBucket?.id === bucket.id ? (
                       <div className="space-y-2">
@@ -482,7 +528,7 @@ export default function VariableExpensesBuckets({
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-2 items-center">
+                  <div className="flex gap-2 items-center ml-4">
                     <input
                       type="color"
                       value={bucket.colorHex || '#E2F0CB'}
@@ -494,10 +540,27 @@ export default function VariableExpensesBuckets({
                     />
                     <button
                       onClick={() => handleDeleteBucket(bucket.id)}
-                      className="text-sm text-red-600 dark:text-red-400 hover:underline"
+                      className="text-sm text-red-600 dark:text-red-400 hover:underline whitespace-nowrap"
                     >
                       Delete
                     </button>
+                  </div>
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                  <div>Allocated: ${formatCurrency(getBucketAmount(bucket.percentage))} of Planned Savings</div>
+                  <div className={`font-medium ${
+                    getBucketCategorySum(bucket) > getBucketAmount(bucket.percentage) 
+                      ? 'text-red-600 dark:text-red-400' 
+                      : getBucketCategorySum(bucket) < getBucketAmount(bucket.percentage)
+                      ? 'text-orange-600 dark:text-orange-400'
+                      : 'text-green-600 dark:text-green-400'
+                  }`}>
+                    Current Total: ${formatCurrency(getBucketCategorySum(bucket))} 
+                    {getBucketCategorySum(bucket) !== getBucketAmount(bucket.percentage) && (
+                      <span className="ml-2">
+                        ({getBucketCategorySum(bucket) > getBucketAmount(bucket.percentage) ? 'Over' : 'Under'} by ${formatCurrency(Math.abs(getBucketCategorySum(bucket) - getBucketAmount(bucket.percentage)))})
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -545,13 +608,12 @@ export default function VariableExpensesBuckets({
                             <input
                               type="number"
                               step="0.01"
+                              min="0"
                               value={budgetLineItems[category.id] || ''}
-                              onChange={(e) =>
-                                onUpdate({
-                                  ...budgetLineItems,
-                                  [category.id]: parseFloat(e.target.value) || 0,
-                                })
-                              }
+                              onChange={(e) => {
+                                const newAmount = parseFloat(e.target.value) || 0
+                                handleCategoryAmountChange(category.id, newAmount, bucket)
+                              }}
                               className="w-32 border border-black dark:border-gray-700 px-2 py-1 text-sm text-right text-black dark:text-white bg-white dark:bg-gray-900"
                               placeholder="0.00"
                             />
@@ -655,6 +717,30 @@ export default function VariableExpensesBuckets({
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Summary Section */}
+      {buckets.length > 0 && (
+        <div className="mt-6 pt-4 border-t border-black dark:border-gray-700">
+          <div className="flex justify-between text-sm font-medium text-black dark:text-white">
+            <span>Total Allocated Percentage:</span>
+            <span className={totalAllocatedPercentage > 100 ? 'text-orange-600 dark:text-orange-400' : ''}>
+              {totalAllocatedPercentage.toFixed(1)}%
+              {totalAllocatedPercentage > 100 && (
+                <span className="ml-2 text-xs">(Over 100% - this is okay, just a guide)</span>
+              )}
+            </span>
+          </div>
+          <div className="flex justify-between text-sm font-medium text-black dark:text-white mt-1">
+            <span>Remaining Planned Savings:</span>
+            <span className={remainingSavings < 0 ? 'text-orange-600 dark:text-orange-400' : ''}>
+              ${formatCurrency(remainingSavings)}
+            </span>
+          </div>
+          <div className="text-xs text-gray-500 dark:text-gray-500 mt-2 italic">
+            Note: Percentages are a guide to help you build your budget. You can exceed 100% if needed.
           </div>
         </div>
       )}
