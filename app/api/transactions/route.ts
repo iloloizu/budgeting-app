@@ -35,9 +35,35 @@ export async function GET(request: NextRequest) {
 
     const transactions = await prisma.transaction.findMany({
       where,
-      include: {
-        incomeSource: true,
-        expenseCategory: true,
+      select: {
+        id: true,
+        userId: true,
+        date: true,
+        description: true,
+        amount: true,
+        type: true,
+        incomeSourceId: true,
+        expenseCategoryId: true,
+        merchantName: true,
+        accountName: true,
+        accountNumber: true,
+        institutionName: true,
+        createdAt: true,
+        incomeSource: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+          },
+        },
+        expenseCategory: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            colorHex: true,
+          },
+        },
       },
       orderBy: { date: 'desc' },
     })
@@ -180,13 +206,23 @@ export async function PUT(request: NextRequest) {
       incomeSourceId !== undefined && incomeSourceId !== existing.incomeSourceId
 
     if ((categoryChanged || incomeSourceChanged) && transaction.merchantName) {
-      await learnCategoryRule(
-        transaction.userId,
-        transaction.merchantName,
-        prisma,
-        transaction.expenseCategoryId || undefined,
-        transaction.incomeSourceId || undefined
-      )
+      // Only learn rules if the category is not "Uncategorized" or "N/A"
+      const category = transaction.expenseCategory
+      const shouldLearn = !category || 
+        (category.name.toLowerCase() !== 'uncategorized' && category.name.toLowerCase() !== 'n/a')
+      
+      if (shouldLearn) {
+        // Don't use regex by default - let learnCategoryRule create generic "contains" patterns
+        // This ensures rules are reusable and don't include transaction-specific IDs
+        await learnCategoryRule(
+          transaction.userId,
+          transaction.merchantName,
+          prisma,
+          transaction.expenseCategoryId || undefined,
+          transaction.incomeSourceId || undefined,
+          false // useRegex = false to prefer generic "contains" patterns
+        )
+      }
     }
 
     return NextResponse.json(transaction)

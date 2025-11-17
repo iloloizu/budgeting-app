@@ -35,5 +35,7 @@ if (process.env.NODE_ENV !== 'production') {
   }
 }
 
+// Type assertion to ensure TypeScript recognizes all models
 export { prisma }
+export type { PrismaClient }
 

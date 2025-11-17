@@ -57,6 +57,7 @@ export default function Navigation({ selectedUserId }: { selectedUserId: string 
     { href: '/reports', label: 'Reports' },
     { href: '/net-worth', label: 'Net Worth' },
     { href: '/import', label: 'Import CSV' },
+    { href: '/rules', label: 'Categorization Rules' },
     { href: '/assistant', label: 'LLM Assistant' },
   ]
 

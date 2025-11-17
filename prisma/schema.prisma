@@ -108,14 +108,16 @@ model Transaction {
   @@index([userId, date])
   @@index([userId, type])
   @@index([userId, expenseCategoryId])
+  @@index([userId, type, expenseCategoryId]) // Composite index for common filter pattern
   @@index([expenseCategoryId])
+  @@index([date]) // For date-only queries
 }
 
 model CategorizationRule {
   id             String   @id @default(cuid())
   userId         String
   pattern        String
-  matchType      String   // "exact" | "contains"
+  matchType      String   // "exact" | "contains" | "regex"
   categoryId     String?  // For expenses
   incomeSourceId String?  // For income
   appliesTo      String   // "expense" | "income" | "both"
@@ -128,6 +130,7 @@ model CategorizationRule {
 
   @@index([userId, pattern])
   @@index([userId, appliesTo])
+  @@index([userId, appliesTo, matchType]) // Composite index for categorization queries
 }
 
 model TellerEnrollment {

@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import Navigation from '@/components/Navigation'
+import Modal from '@/components/Modal'
+import { useModal } from '@/hooks/useModal'
 import CategoryColorPicker from '@/components/CategoryColorPicker'
 import {
   LineChart,
@@ -36,6 +38,7 @@ export default function ReportsPage() {
   const [year, setYear] = useState(new Date().getFullYear())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const modal = useModal()
 
   const fetchData = useCallback(async (userId: string) => {
     setLoading(true)
@@ -134,11 +137,20 @@ export default function ReportsPage() {
 
   // Memoize chart data to avoid recalculation - MUST be before conditional returns
   const chartData = useMemo(() => {
-    return savingsProjection.map((item) => ({
+    return savingsProjection.map((item: any) => ({
       month: `${item.monthName} ${item.year}`,
-      savings: item.plannedSavings,
-      income: item.plannedIncome,
-      expenses: item.plannedExpenses,
+      savings: item.savings,
+      income: item.income,
+      expenses: item.expenses,
+      actualSavings: item.actualSavings || 0,
+      actualIncome: item.actualIncome || 0,
+      actualExpenses: item.actualExpenses || 0,
+      plannedSavings: item.plannedSavings || 0,
+      plannedIncome: item.plannedIncome || 0,
+      plannedExpenses: item.plannedExpenses || 0,
+      isPast: item.isPast,
+      isCurrent: item.isCurrent,
+      isFuture: item.isFuture,
     }))
   }, [savingsProjection])
 
@@ -197,6 +209,17 @@ export default function ReportsPage() {
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
       <Navigation selectedUserId={selectedUserId} />
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={modal.closeModal}
+        title={modal.modalOptions.title}
+        message={modal.modalOptions.message}
+        type={modal.modalOptions.type}
+        confirmText={modal.modalOptions.confirmText}
+        cancelText={modal.modalOptions.cancelText}
+        onConfirm={modal.modalOptions.onConfirm}
+        showCancel={modal.modalOptions.showCancel}
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-black dark:text-white mb-4 sm:mb-6 lg:mb-8">Reports</h1>
 
@@ -220,7 +243,7 @@ export default function ReportsPage() {
             <button
               onClick={() => {
                 navigator.clipboard.writeText(error)
-                alert('Error message copied to clipboard!')
+                modal.showSuccess('Error message copied to clipboard!')
               }}
               className="mt-2 border border-red-600 dark:border-red-500 px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-600 dark:hover:bg-red-700 hover:text-white transition-colors"
             >
@@ -231,8 +254,12 @@ export default function ReportsPage() {
 
         <div className="mb-8 sm:mb-12">
           <h2 className="text-xl sm:text-2xl font-bold text-black dark:text-white mb-4 sm:mb-6">
-            12-Month Savings Projection
+            Savings Projection (Historical & Forecast)
           </h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            Showing historical data from actual transactions and 6-month forward projection from budgets.
+            Past months show actuals, future months show planned amounts.
+          </p>
 
           {/* Mobile Card View */}
           <div className="md:hidden space-y-3">
@@ -245,26 +272,38 @@ export default function ReportsPage() {
                   {item.monthName} {item.year}
                 </div>
                 <div className="space-y-2">
+                  {(item.isPast || item.isCurrent) && item.actualIncome > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-black dark:text-gray-400">Actual Income</span>
+                      <span className="text-sm font-medium text-black dark:text-white">
+                        ${formatCurrency(item.actualIncome)}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
-                    <span className="text-sm text-black dark:text-gray-400">Income</span>
+                    <span className="text-sm text-black dark:text-gray-400">
+                      {item.isPast || item.isCurrent ? 'Actual Expenses' : 'Planned Expenses'}
+                    </span>
                     <span className="text-sm font-medium text-black dark:text-white">
-                      ${formatCurrency(item.plannedIncome)}
+                      ${formatCurrency(item.isPast || item.isCurrent ? item.actualExpenses : item.plannedExpenses)}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-black dark:text-gray-400">Expenses</span>
-                    <span className="text-sm font-medium text-black dark:text-white">
-                      ${formatCurrency(item.plannedExpenses)}
-                    </span>
-                  </div>
+                  {item.isCurrent && item.plannedIncome > 0 && (
+                    <div className="flex justify-between text-xs text-gray-500 dark:text-gray-500">
+                      <span>Planned Income</span>
+                      <span>${formatCurrency(item.plannedIncome)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between pt-2 border-t border-black dark:border-gray-700">
-                    <span className="text-sm font-medium text-black dark:text-white">Savings</span>
+                    <span className="text-sm font-medium text-black dark:text-white">
+                      {item.isPast || item.isCurrent ? 'Actual Savings' : 'Planned Savings'}
+                    </span>
                     <span className={`text-sm font-semibold ${
-                      item.plannedSavings >= 0 
+                      (item.isPast || item.isCurrent ? item.actualSavings : item.plannedSavings) >= 0 
                         ? 'text-green-600 dark:text-green-400' 
                         : 'text-red-600 dark:text-red-400'
                     }`}>
-                      ${formatCurrency(item.plannedSavings)}
+                      ${formatCurrency(item.isPast || item.isCurrent ? item.actualSavings : item.plannedSavings)}
                     </span>
                   </div>
                 </div>
@@ -281,30 +320,47 @@ export default function ReportsPage() {
                     Month
                   </th>
                   <th className="text-right p-3 text-sm font-medium text-black dark:text-white">
-                    Planned Income
+                    Income
                   </th>
                   <th className="text-right p-3 text-sm font-medium text-black dark:text-white">
-                    Planned Expenses
+                    Expenses
                   </th>
                   <th className="text-right p-3 text-sm font-medium text-black dark:text-white">
-                    Planned Savings
+                    Savings
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {savingsProjection.map((item, index) => (
-                  <tr key={index} className="border-b border-black dark:border-gray-700">
+                {savingsProjection.map((item: any, index: number) => (
+                  <tr 
+                    key={index} 
+                    className={`border-b border-black dark:border-gray-700 ${
+                      item.isCurrent ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                    }`}
+                  >
                     <td className="p-3 text-sm text-black dark:text-white">
                       {item.monthName} {item.year}
+                      {item.isCurrent && <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">(Current)</span>}
+                      {item.isPast && <span className="ml-2 text-xs text-gray-500">(Actual)</span>}
+                      {item.isFuture && <span className="ml-2 text-xs text-gray-500">(Planned)</span>}
                     </td>
                     <td className="p-3 text-sm text-right text-black dark:text-white">
-                      ${formatCurrency(item.plannedIncome)}
+                      ${formatCurrency(item.income)}
+                      {item.isCurrent && item.plannedIncome > 0 && item.actualIncome !== item.plannedIncome && (
+                        <div className="text-xs text-gray-500">
+                          (Planned: ${formatCurrency(item.plannedIncome)})
+                        </div>
+                      )}
                     </td>
                     <td className="p-3 text-sm text-right text-black dark:text-white">
-                      ${formatCurrency(item.plannedExpenses)}
+                      ${formatCurrency(item.expenses)}
                     </td>
-                    <td className="p-3 text-sm text-right text-black dark:text-white">
-                      ${formatCurrency(item.plannedSavings)}
+                    <td className={`p-3 text-sm text-right font-medium ${
+                      item.savings >= 0 
+                        ? 'text-green-600 dark:text-green-400' 
+                        : 'text-red-600 dark:text-red-400'
+                    }`}>
+                      ${formatCurrency(item.savings)}
                     </td>
                   </tr>
                 ))}
@@ -318,7 +374,9 @@ export default function ReportsPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#ccc" />
                 <XAxis dataKey="month" stroke="#000" />
                 <YAxis stroke="#000" />
-                <Tooltip />
+                <Tooltip 
+                  formatter={(value: any) => `$${formatCurrency(Number(value))}`}
+                />
                 <Legend />
                 <Line
                   type="monotone"
@@ -326,6 +384,7 @@ export default function ReportsPage() {
                   stroke="#000000"
                   strokeWidth={2}
                   name="Savings"
+                  dot={{ fill: '#000000', r: 4 }}
                 />
                 <Line
                   type="monotone"
@@ -333,6 +392,7 @@ export default function ReportsPage() {
                   stroke="#666666"
                   strokeWidth={2}
                   name="Income"
+                  dot={{ fill: '#666666', r: 4 }}
                 />
                 <Line
                   type="monotone"
@@ -340,6 +400,7 @@ export default function ReportsPage() {
                   stroke="#999999"
                   strokeWidth={2}
                   name="Expenses"
+                  dot={{ fill: '#999999', r: 4 }}
                 />
               </LineChart>
             </ResponsiveContainer>

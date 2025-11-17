@@ -14,15 +14,17 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "db:test": "node scripts/test-neon-connection.js"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^5.22.0",
     "@anthropic-ai/sdk": "^0.24.0",
+    "@prisma/client": "^5.22.0",
     "next": "14.2.5",
+    "openai": "^6.9.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "recharts": "^2.12.7"
@@ -41,4 +43,3 @@
     "typescript": "^5.5.4"
   }
 }
-

@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Navigation from '@/components/Navigation'
+import Modal from '@/components/Modal'
+import { useModal } from '@/hooks/useModal'
 import { formatCurrency } from '@/lib/format'
 
 export default function BudgetPage() {
@@ -12,6 +14,7 @@ export default function BudgetPage() {
   const [expenseCategories, setExpenseCategories] = useState<any[]>([])
   const [budgetLineItems, setBudgetLineItems] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
+  const modal = useModal()
 
   const fetchData = useCallback(async (userId: string) => {
     setLoading(true)
@@ -97,11 +100,13 @@ export default function BudgetPage() {
       })
 
       if (res.ok) {
-        alert('Budget saved successfully')
+        modal.showSuccess('Budget saved successfully')
+      } else {
+        modal.showError('Failed to save budget')
       }
     } catch (error) {
       console.error('Error saving budget:', error)
-      alert('Failed to save budget')
+      modal.showError('Failed to save budget')
     }
   }
 
@@ -145,6 +150,17 @@ export default function BudgetPage() {
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
       <Navigation selectedUserId={selectedUserId} />
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={modal.closeModal}
+        title={modal.modalOptions.title}
+        message={modal.modalOptions.message}
+        type={modal.modalOptions.type}
+        confirmText={modal.modalOptions.confirmText}
+        cancelText={modal.modalOptions.cancelText}
+        onConfirm={modal.modalOptions.onConfirm}
+        showCancel={modal.modalOptions.showCancel}
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-black dark:text-white mb-4 sm:mb-6 lg:mb-8">Monthly Budget</h1>
 
@@ -184,6 +200,7 @@ export default function BudgetPage() {
           userId={selectedUserId}
           incomeSources={incomeSources}
           onUpdate={() => fetchData(selectedUserId)}
+          modal={modal}
         />
 
         <ExpensesSection
@@ -191,6 +208,7 @@ export default function BudgetPage() {
           expenseCategories={expenseCategories}
           budgetLineItems={budgetLineItems}
           onUpdate={(items) => setBudgetLineItems(items)}
+          modal={modal}
         />
 
         <div className="mt-6 sm:mt-8 border-t border-black dark:border-gray-700 pt-4 sm:pt-6">
@@ -236,10 +254,12 @@ function IncomeSection({
   userId,
   incomeSources,
   onUpdate,
+  modal,
 }: {
   userId: string
   incomeSources: any[]
   onUpdate: () => void
+  modal: ReturnType<typeof useModal>
 }) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -284,14 +304,19 @@ function IncomeSection({
   }
 
   const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this income source?')) {
-      try {
-        await fetch(`/api/income-sources?id=${id}`, { method: 'DELETE' })
-        onUpdate()
-      } catch (error) {
-        console.error('Error deleting income source:', error)
-      }
-    }
+    modal.showConfirm(
+      'Are you sure you want to delete this income source?',
+      async () => {
+        try {
+          await fetch(`/api/income-sources?id=${id}`, { method: 'DELETE' })
+          onUpdate()
+        } catch (error) {
+          console.error('Error deleting income source:', error)
+          modal.showError('Failed to delete income source')
+        }
+      },
+      'Delete Income Source'
+    )
   }
 
   const handleEdit = (source: any) => {
@@ -513,11 +538,13 @@ function ExpensesSection({
   expenseCategories,
   budgetLineItems,
   onUpdate,
+  modal,
 }: {
   userId: string
   expenseCategories: any[]
   budgetLineItems: Record<string, number>
   onUpdate: (items: Record<string, number>) => void
+  modal: ReturnType<typeof useModal>
 }) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [formData, setFormData] = useState({ name: '', type: 'fixed' })
@@ -548,14 +575,19 @@ function ExpensesSection({
   }
 
   const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this category?')) {
-      try {
-        await fetch(`/api/expense-categories?id=${id}`, { method: 'DELETE' })
-        window.location.reload()
-      } catch (error) {
-        console.error('Error deleting category:', error)
-      }
-    }
+    modal.showConfirm(
+      'Are you sure you want to delete this category?',
+      async () => {
+        try {
+          await fetch(`/api/expense-categories?id=${id}`, { method: 'DELETE' })
+          window.location.reload()
+        } catch (error) {
+          console.error('Error deleting category:', error)
+          modal.showError('Failed to delete category')
+        }
+      },
+      'Delete Category'
+    )
   }
 
   const fixedCategories = expenseCategories.filter((c) => c.type === 'fixed')
