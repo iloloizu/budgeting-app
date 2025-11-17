@@ -333,6 +333,12 @@ export async function categorizeTransaction(
         }
       }
 
+    // Ensure investingCategory is defined before returning
+    if (!investingCategory) {
+      // Fallback: return empty result if we couldn't create/find the category
+      return {}
+    }
+
     return { categoryId: investingCategory.id }
   }
 
@@ -351,7 +357,9 @@ export async function categorizeTransaction(
       select: { id: true, name: true, colorHex: true },
     })
     
-    const categoryNameLower = parsed.csvCategory.toLowerCase()
+    // parsed.csvCategory is guaranteed to be defined here due to the if condition above
+    const csvCategory = parsed.csvCategory
+    const categoryNameLower = csvCategory.toLowerCase()
     let category = allCategories.find(
       (cat) => cat.name.toLowerCase() === categoryNameLower
     )
@@ -360,12 +368,12 @@ export async function categorizeTransaction(
     if (!category) {
       // Double-check for duplicate (case-insensitive)
       const duplicateCheck = allCategories.find(
-        (cat) => cat.name.toLowerCase() === parsed.csvCategory.toLowerCase()
+        (cat) => cat.name.toLowerCase() === csvCategory.toLowerCase()
       )
       if (duplicateCheck) {
         category = duplicateCheck
       } else {
-        const isFixed = /rent|insurance|loan|mortgage|subscription/i.test(parsed.csvCategory)
+        const isFixed = /rent|insurance|loan|mortgage|subscription/i.test(csvCategory)
         
         const usedColors = allCategories
           .map((c) => c.colorHex)
@@ -376,7 +384,7 @@ export async function categorizeTransaction(
           category = await prisma.expenseCategory.create({
             data: {
               userId,
-              name: parsed.csvCategory,
+              name: csvCategory,
               type: isFixed ? 'fixed' : 'variable',
               colorHex: nextColor,
             },
@@ -388,7 +396,7 @@ export async function categorizeTransaction(
             const found = await prisma.expenseCategory.findFirst({
               where: {
                 userId,
-                name: { equals: parsed.csvCategory, mode: 'insensitive' },
+                name: { equals: csvCategory, mode: 'insensitive' },
               },
               select: { id: true, name: true, colorHex: true },
             })
@@ -398,6 +406,12 @@ export async function categorizeTransaction(
           }
         }
       }
+    }
+
+    // Ensure category is defined before returning
+    if (!category) {
+      // Fallback: return empty result if we couldn't create/find the category
+      return {}
     }
 
     return { categoryId: category.id }
@@ -565,6 +579,12 @@ export async function categorizeTransaction(
           }
         }
       }
+    }
+
+    // Ensure uncategorized is defined before returning
+    if (!uncategorized) {
+      // Fallback: return empty result if we couldn't create/find the category
+      return {}
     }
 
     return { categoryId: uncategorized.id }
