@@ -5,6 +5,7 @@ import Navigation from '@/components/Navigation'
 import Modal from '@/components/Modal'
 import { useModal } from '@/hooks/useModal'
 import { formatCurrency } from '@/lib/format'
+import VariableExpensesBuckets from '@/components/VariableExpensesBuckets'
 
 export default function BudgetPage() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
@@ -51,6 +52,17 @@ export default function BudgetPage() {
       setLoading(false)
     }
   }, [year, month])
+
+  // Listen for category refresh events
+  useEffect(() => {
+    const handleRefresh = () => {
+      if (selectedUserId) {
+        fetchData(selectedUserId)
+      }
+    }
+    window.addEventListener('refreshCategories', handleRefresh)
+    return () => window.removeEventListener('refreshCategories', handleRefresh)
+  }, [selectedUserId, fetchData])
 
   useEffect(() => {
     const stored = localStorage.getItem('selectedUserId')
@@ -201,6 +213,7 @@ export default function BudgetPage() {
           incomeSources={incomeSources}
           onUpdate={() => fetchData(selectedUserId)}
           modal={modal}
+          totalPlannedIncome={totalPlannedIncome}
         />
 
         <ExpensesSection
@@ -209,6 +222,10 @@ export default function BudgetPage() {
           budgetLineItems={budgetLineItems}
           onUpdate={(items) => setBudgetLineItems(items)}
           modal={modal}
+          totalPlannedExpenses={totalPlannedExpenses}
+          year={year}
+          month={month}
+          totalPlannedSavings={totalPlannedSavings}
         />
 
         <div className="mt-6 sm:mt-8 border-t border-black dark:border-gray-700 pt-4 sm:pt-6">
@@ -255,11 +272,13 @@ function IncomeSection({
   incomeSources,
   onUpdate,
   modal,
+  totalPlannedIncome,
 }: {
   userId: string
   incomeSources: any[]
   onUpdate: () => void
   modal: ReturnType<typeof useModal>
+  totalPlannedIncome: number
 }) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -273,8 +292,9 @@ function IncomeSection({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      let res
       if (editingId) {
-        await fetch('/api/income-sources', {
+        res = await fetch('/api/income-sources', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -284,7 +304,7 @@ function IncomeSection({
           }),
         })
       } else {
-        await fetch('/api/income-sources', {
+        res = await fetch('/api/income-sources', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -294,12 +314,19 @@ function IncomeSection({
           }),
         })
       }
-      onUpdate()
-      setShowAddForm(false)
-      setEditingId(null)
-      setFormData({ name: '', amount: '', type: 'salary', isActive: true })
+      
+      if (res.ok) {
+        onUpdate()
+        setShowAddForm(false)
+        setEditingId(null)
+        setFormData({ name: '', amount: '', type: 'salary', isActive: true })
+      } else {
+        const errorData = await res.json()
+        modal.showError(errorData.error || 'Failed to save income source')
+      }
     } catch (error) {
       console.error('Error saving income source:', error)
+      modal.showError('Failed to save income source')
     }
   }
 
@@ -457,6 +484,11 @@ function IncomeSection({
                 <div className="text-xs text-black dark:text-gray-400">
                   {source.isActive ? 'Active' : 'Inactive'}
                 </div>
+                {totalPlannedIncome > 0 && source.isActive && (
+                  <div className="text-xs text-black dark:text-gray-500 mt-1">
+                    {((source.amount / totalPlannedIncome) * 100).toFixed(1)}%
+                  </div>
+                )}
               </div>
             </div>
             <div className="mt-3 flex gap-2">
@@ -491,6 +523,9 @@ function IncomeSection({
               <th className="text-right p-3 text-sm font-medium text-black dark:text-white">
                 Monthly Amount
               </th>
+              <th className="text-right p-3 text-sm font-medium text-black dark:text-white">
+                % of Total
+              </th>
               <th className="text-center p-3 text-sm font-medium text-black dark:text-white">
                 Active
               </th>
@@ -506,6 +541,11 @@ function IncomeSection({
                 <td className="p-3 text-sm text-black dark:text-white capitalize">{source.type}</td>
                     <td className="p-3 text-sm text-right text-black dark:text-white">
                   ${formatCurrency(source.amount)}
+                </td>
+                <td className="p-3 text-sm text-right text-black dark:text-white">
+                  {totalPlannedIncome > 0 && source.isActive
+                    ? `${((source.amount / totalPlannedIncome) * 100).toFixed(1)}%`
+                    : '-'}
                 </td>
                 <td className="p-3 text-sm text-center text-black dark:text-white">
                   {source.isActive ? 'Yes' : 'No'}
@@ -539,12 +579,20 @@ function ExpensesSection({
   budgetLineItems,
   onUpdate,
   modal,
+  totalPlannedExpenses,
+  year,
+  month,
+  totalPlannedSavings,
 }: {
   userId: string
   expenseCategories: any[]
   budgetLineItems: Record<string, number>
   onUpdate: (items: Record<string, number>) => void
   modal: ReturnType<typeof useModal>
+  totalPlannedExpenses: number
+  year: number
+  month: number
+  totalPlannedSavings: number
 }) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [formData, setFormData] = useState({ name: '', type: 'fixed' })
@@ -560,15 +608,11 @@ function ExpensesSection({
           ...formData,
         }),
       })
-      // Refresh categories
-      const res = await fetch(`/api/expense-categories?userId=${userId}`)
-      if (res.ok) {
-        const categories = await res.json()
-        // This will trigger a re-render in parent
-        window.location.reload()
-      }
+      // Refresh categories by triggering a refresh event
       setShowAddForm(false)
       setFormData({ name: '', type: 'fixed' })
+      // Trigger a refresh of categories - parent component will handle this
+      window.dispatchEvent(new CustomEvent('refreshCategories'))
     } catch (error) {
       console.error('Error creating category:', error)
     }
@@ -579,8 +623,16 @@ function ExpensesSection({
       'Are you sure you want to delete this category?',
       async () => {
         try {
-          await fetch(`/api/expense-categories?id=${id}`, { method: 'DELETE' })
-          window.location.reload()
+          const res = await fetch(`/api/expense-categories?id=${id}`, { method: 'DELETE' })
+          if (res.ok) {
+            // Remove from local state
+            const updatedCategories = expenseCategories.filter((c) => c.id !== id)
+            // Trigger refresh via custom event
+            window.dispatchEvent(new CustomEvent('refreshCategories'))
+            modal.showSuccess('Category deleted successfully')
+          } else {
+            modal.showError('Failed to delete category')
+          }
         } catch (error) {
           console.error('Error deleting category:', error)
           modal.showError('Failed to delete category')
@@ -694,6 +746,11 @@ function ExpensesSection({
                     className="w-full border border-black dark:border-gray-700 px-3 py-2 text-base text-black dark:text-white bg-white dark:bg-gray-900"
                     placeholder="0.00"
                   />
+                  {totalPlannedExpenses > 0 && budgetLineItems[category.id] > 0 && (
+                    <div className="text-xs text-black dark:text-gray-500 mt-1">
+                      {((budgetLineItems[category.id] / totalPlannedExpenses) * 100).toFixed(1)}% of total expenses
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={() => handleDelete(category.id)}
@@ -716,6 +773,9 @@ function ExpensesSection({
                 </th>
                 <th className="text-right p-3 text-sm font-medium text-black dark:text-white">
                   Planned Amount
+                </th>
+                <th className="text-right p-3 text-sm font-medium text-black dark:text-white">
+                  % of Total
                 </th>
                 <th className="text-center p-3 text-sm font-medium text-black dark:text-white">
                   Actions
@@ -741,100 +801,10 @@ function ExpensesSection({
                       placeholder="0.00"
                     />
                   </td>
-                  <td className="p-3 text-center">
-                    <button
-                      onClick={() => handleDelete(category.id)}
-                      className="text-sm text-black dark:text-white hover:underline"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-lg sm:text-xl font-bold text-black dark:text-white mb-3">
-          Variable Expenses
-        </h3>
-        
-        {/* Mobile Card View */}
-        <div className="md:hidden space-y-3">
-          {variableCategories.map((category) => (
-            <div
-              key={category.id}
-              className="border border-black dark:border-gray-700 p-4 bg-white dark:bg-gray-800"
-            >
-              <div className="text-base font-medium text-black dark:text-white mb-3">
-                {category.name}
-              </div>
-              <div className="space-y-2">
-                <div>
-                  <label className="block text-xs text-black dark:text-gray-400 mb-1">
-                    Planned Amount
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={budgetLineItems[category.id] || ''}
-                    onChange={(e) =>
-                      onUpdate({
-                        ...budgetLineItems,
-                        [category.id]: parseFloat(e.target.value) || 0,
-                      })
-                    }
-                    className="w-full border border-black dark:border-gray-700 px-3 py-2 text-base text-black dark:text-white bg-white dark:bg-gray-900"
-                    placeholder="0.00"
-                  />
-                </div>
-                <button
-                  onClick={() => handleDelete(category.id)}
-                  className="w-full border border-red-600 dark:border-red-500 px-3 py-2 text-sm text-red-600 dark:text-red-400 bg-white dark:bg-gray-800 hover:bg-red-600 dark:hover:bg-red-700 hover:text-white transition-colors"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Desktop Table View */}
-        <div className="hidden md:block border border-black dark:border-gray-700 bg-white dark:bg-gray-800">
-          <table className="w-full">
-            <thead>
-                <tr className="border-b border-black dark:border-gray-700">
-                  <th className="text-left p-3 text-sm font-medium text-black dark:text-white">
-                  Category
-                </th>
-                <th className="text-right p-3 text-sm font-medium text-black dark:text-white">
-                  Planned Amount
-                </th>
-                <th className="text-center p-3 text-sm font-medium text-black dark:text-white">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {variableCategories.map((category) => (
-                <tr key={category.id} className="border-b border-black dark:border-gray-700">
-                  <td className="p-3 text-sm text-black dark:text-white">{category.name}</td>
-                  <td className="p-3 text-right">
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={budgetLineItems[category.id] || ''}
-                      onChange={(e) =>
-                        onUpdate({
-                          ...budgetLineItems,
-                          [category.id]: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      className="w-32 border border-black dark:border-gray-700 px-2 py-1 text-sm text-right text-black dark:text-white bg-white dark:bg-gray-900"
-                      placeholder="0.00"
-                    />
+                  <td className="p-3 text-sm text-right text-black dark:text-white">
+                    {totalPlannedExpenses > 0 && budgetLineItems[category.id] > 0
+                      ? `${((budgetLineItems[category.id] / totalPlannedExpenses) * 100).toFixed(1)}%`
+                      : '-'}
                   </td>
                   <td className="p-3 text-center">
                     <button
@@ -850,6 +820,18 @@ function ExpensesSection({
           </table>
         </div>
       </div>
+
+      <VariableExpensesBuckets
+        userId={userId}
+        year={year}
+        month={month}
+        variableCategories={variableCategories}
+        budgetLineItems={budgetLineItems}
+        onUpdate={onUpdate}
+        totalPlannedSavings={totalPlannedSavings}
+        totalPlannedExpenses={totalPlannedExpenses}
+        modal={modal}
+      />
     </div>
   )
 }

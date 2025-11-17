@@ -41,6 +41,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check for duplicate category name (case-insensitive)
+    const existingCategory = await prisma.expenseCategory.findFirst({
+      where: {
+        userId,
+        name: {
+          equals: name,
+          mode: 'insensitive',
+        },
+      },
+    })
+
+    if (existingCategory) {
+      return NextResponse.json(
+        { error: `A category with the name "${name}" already exists` },
+        { status: 409 }
+      )
+    }
+
     // Get used colors for this user to assign a unique one
     const allUserCategories = await prisma.expenseCategory.findMany({
       where: { userId },
@@ -61,10 +79,19 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(category, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating expense category:', error)
+    
+    // Handle unique constraint violation
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: `A category with the name "${body.name}" already exists` },
+        { status: 409 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to create expense category' },
+      { error: 'Failed to create expense category', message: error.message },
       { status: 500 }
     )
   }

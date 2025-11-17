@@ -10,11 +10,17 @@ const globalForPrisma = globalThis as unknown as {
 let prisma: PrismaClient
 
 if (process.env.NODE_ENV !== 'production') {
-  // Disconnect existing client if it exists
+  // In development, always create a fresh instance to pick up schema changes
+  // Clear the global instance to force reload
   if (globalForPrisma.prisma) {
-    globalForPrisma.prisma.$disconnect().catch(() => {})
+    try {
+      globalForPrisma.prisma.$disconnect().catch(() => {})
+    } catch (e) {
+      // Ignore disconnect errors
+    }
+    globalForPrisma.prisma = undefined
   }
-  // Always create a new instance in development
+  // Create a new instance - this will pick up the latest Prisma client
   prisma = new PrismaClient({
     log: ['error', 'warn'],
   })

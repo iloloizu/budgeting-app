@@ -36,6 +36,7 @@ export default function ReportsPage() {
   const [categorySpending, setCategorySpending] = useState<any>(null)
   const [expenseCategories, setExpenseCategories] = useState<any[]>([])
   const [year, setYear] = useState(new Date().getFullYear())
+  const [month, setMonth] = useState<number | null>(null) // null = all months
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const modal = useModal()
@@ -43,9 +44,10 @@ export default function ReportsPage() {
   const fetchData = useCallback(async (userId: string) => {
     setLoading(true)
     try {
+      const spendingUrl = `/api/reports/category-spending?userId=${userId}&year=${year}${month !== null ? `&month=${month}` : ''}`
       const [projectionRes, spendingRes, categoriesRes] = await Promise.all([
         fetch(`/api/reports/savings-projection?userId=${userId}`),
-        fetch(`/api/reports/category-spending?userId=${userId}&year=${year}`),
+        fetch(spendingUrl),
         fetch(`/api/expense-categories?userId=${userId}`),
       ])
 
@@ -68,7 +70,7 @@ export default function ReportsPage() {
     } finally {
       setLoading(false)
     }
-  }, [year])
+  }, [year, month])
 
   useEffect(() => {
     const stored = localStorage.getItem('selectedUserId')
@@ -111,9 +113,8 @@ export default function ReportsPage() {
       
       // Refresh category spending to update charts
       if (selectedUserId) {
-        const spendingRes = await fetch(
-          `/api/reports/category-spending?userId=${selectedUserId}&year=${year}`
-        )
+        const spendingUrl = `/api/reports/category-spending?userId=${selectedUserId}&year=${year}${month !== null ? `&month=${month}` : ''}`
+        const spendingRes = await fetch(spendingUrl)
         if (spendingRes.ok) {
           const spending = await spendingRes.json()
           setCategorySpending(spending)
@@ -410,18 +411,37 @@ export default function ReportsPage() {
         <div>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6">
             <h2 className="text-xl sm:text-2xl font-bold text-black dark:text-white">
-              Category Spending for {year}
+              Category Spending for {month !== null ? `${new Date(year, month).toLocaleString('default', { month: 'long' })} ` : ''}{year}
             </h2>
-            <div className="w-full sm:w-auto">
-                  <label className="block text-xs sm:text-sm font-medium text-black dark:text-white mb-1">
-                    Year
-                  </label>
-                  <input
-                    type="number"
-                    value={year}
-                    onChange={(e) => setYear(parseInt(e.target.value))}
-                    className="w-full sm:w-auto border border-black dark:border-gray-700 px-3 py-2 text-sm sm:text-base text-black dark:text-white bg-white dark:bg-gray-900"
-              />
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              <div className="w-full sm:w-auto">
+                <label className="block text-xs sm:text-sm font-medium text-black dark:text-white mb-1">
+                  Year
+                </label>
+                <input
+                  type="number"
+                  value={year}
+                  onChange={(e) => setYear(parseInt(e.target.value))}
+                  className="w-full sm:w-auto border border-black dark:border-gray-700 px-3 py-2 text-sm sm:text-base text-black dark:text-white bg-white dark:bg-gray-900"
+                />
+              </div>
+              <div className="w-full sm:w-auto">
+                <label className="block text-xs sm:text-sm font-medium text-black dark:text-white mb-1">
+                  Month (Optional)
+                </label>
+                <select
+                  value={month === null ? '' : month}
+                  onChange={(e) => setMonth(e.target.value === '' ? null : parseInt(e.target.value))}
+                  className="w-full sm:w-auto border border-black dark:border-gray-700 px-3 py-2 text-sm sm:text-base text-black dark:text-white bg-white dark:bg-gray-900"
+                >
+                  <option value="">All Months</option>
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <option key={i} value={i}>
+                      {new Date(year, i).toLocaleString('default', { month: 'long' })}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 

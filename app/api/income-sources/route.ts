@@ -41,6 +41,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check for duplicate income source name (case-insensitive)
+    const existingIncomeSource = await prisma.incomeSource.findFirst({
+      where: {
+        userId,
+        name: {
+          equals: name,
+          mode: 'insensitive',
+        },
+      },
+    })
+
+    if (existingIncomeSource) {
+      return NextResponse.json(
+        { error: `An income source with the name "${name}" already exists` },
+        { status: 409 }
+      )
+    }
+
     const incomeSource = await prisma.incomeSource.create({
       data: {
         userId,
@@ -52,10 +70,19 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(incomeSource, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating income source:', error)
+    
+    // Handle unique constraint violation
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: `An income source with the name "${body.name}" already exists` },
+        { status: 409 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to create income source' },
+      { error: 'Failed to create income source', message: error.message },
       { status: 500 }
     )
   }
@@ -73,21 +100,58 @@ export async function PUT(request: NextRequest) {
       )
     }
 
+    // If name is being updated, check for duplicates
+    if (name) {
+      const existing = await prisma.incomeSource.findUnique({
+        where: { id },
+        select: { userId: true },
+      })
+
+      if (existing) {
+        const duplicate = await prisma.incomeSource.findFirst({
+          where: {
+            userId: existing.userId,
+            id: { not: id }, // Exclude the current record
+            name: {
+              equals: name,
+              mode: 'insensitive',
+            },
+          },
+        })
+
+        if (duplicate) {
+          return NextResponse.json(
+            { error: `An income source with the name "${name}" already exists` },
+            { status: 409 }
+          )
+        }
+      }
+    }
+
     const incomeSource = await prisma.incomeSource.update({
       where: { id },
       data: {
         ...(name && { name }),
-        ...(amount !== undefined && { amount: parseFloat(amount) }),
+        ...(amount !== undefined && { amount: roundCurrency(parseFloat(amount)) }),
         ...(type && { type }),
         ...(isActive !== undefined && { isActive }),
       },
     })
 
     return NextResponse.json(incomeSource)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating income source:', error)
+    
+    // Handle unique constraint violation
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: `An income source with the name "${body.name}" already exists` },
+        { status: 409 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to update income source' },
+      { error: 'Failed to update income source', message: error.message },
       { status: 500 }
     )
   }

@@ -291,23 +291,47 @@ export async function categorizeTransaction(
       (cat) => cat.name.toLowerCase() === 'investing'
     )
 
-    // Create "Investing" category if it doesn't exist
-    if (!investingCategory) {
-      const usedColors = allCategories
-        .map((c) => c.colorHex)
-        .filter((c): c is string => c !== null && c !== undefined)
-      const nextColor = getNextAvailableColor(usedColors)
-      
-      investingCategory = await prisma.expenseCategory.create({
-        data: {
-          userId,
-          name: 'Investing',
-          type: 'variable',
-          colorHex: nextColor,
-        },
-        select: { id: true, name: true, colorHex: true },
-      })
-    }
+      // Create "Investing" category if it doesn't exist
+      if (!investingCategory) {
+        // Double-check for duplicate (case-insensitive)
+        const duplicateCheck = allCategories.find(
+          (cat) => cat.name.toLowerCase() === 'investing'
+        )
+        if (duplicateCheck) {
+          investingCategory = duplicateCheck
+        } else {
+          const usedColors = allCategories
+            .map((c) => c.colorHex)
+            .filter((c): c is string => c !== null && c !== undefined)
+          const nextColor = getNextAvailableColor(usedColors)
+
+          try {
+            investingCategory = await prisma.expenseCategory.create({
+              data: {
+                userId,
+                name: 'Investing',
+                type: 'variable',
+                colorHex: nextColor,
+              },
+              select: { id: true, name: true, colorHex: true },
+            })
+          } catch (error: any) {
+            // If duplicate constraint error, try to find it again
+            if (error.code === 'P2002') {
+              const found = await prisma.expenseCategory.findFirst({
+                where: {
+                  userId,
+                  name: { equals: 'Investing', mode: 'insensitive' },
+                },
+                select: { id: true, name: true, colorHex: true },
+              })
+              if (found) investingCategory = found
+            } else {
+              throw error
+            }
+          }
+        }
+      }
 
     return { categoryId: investingCategory.id }
   }
@@ -334,22 +358,46 @@ export async function categorizeTransaction(
 
     // If not found, create it with a color
     if (!category) {
-      const isFixed = /rent|insurance|loan|mortgage|subscription/i.test(parsed.csvCategory)
-      
-      const usedColors = allCategories
-        .map((c) => c.colorHex)
-        .filter((c): c is string => c !== null && c !== undefined)
-      const nextColor = getNextAvailableColor(usedColors)
-      
-      category = await prisma.expenseCategory.create({
-        data: {
-          userId,
-          name: parsed.csvCategory,
-          type: isFixed ? 'fixed' : 'variable',
-          colorHex: nextColor,
-        },
-        select: { id: true, name: true, colorHex: true },
-      })
+      // Double-check for duplicate (case-insensitive)
+      const duplicateCheck = allCategories.find(
+        (cat) => cat.name.toLowerCase() === parsed.csvCategory.toLowerCase()
+      )
+      if (duplicateCheck) {
+        category = duplicateCheck
+      } else {
+        const isFixed = /rent|insurance|loan|mortgage|subscription/i.test(parsed.csvCategory)
+        
+        const usedColors = allCategories
+          .map((c) => c.colorHex)
+          .filter((c): c is string => c !== null && c !== undefined)
+        const nextColor = getNextAvailableColor(usedColors)
+        
+        try {
+          category = await prisma.expenseCategory.create({
+            data: {
+              userId,
+              name: parsed.csvCategory,
+              type: isFixed ? 'fixed' : 'variable',
+              colorHex: nextColor,
+            },
+            select: { id: true, name: true, colorHex: true },
+          })
+        } catch (error: any) {
+          // If duplicate constraint error, try to find it again
+          if (error.code === 'P2002') {
+            const found = await prisma.expenseCategory.findFirst({
+              where: {
+                userId,
+                name: { equals: parsed.csvCategory, mode: 'insensitive' },
+              },
+              select: { id: true, name: true, colorHex: true },
+            })
+            if (found) category = found
+          } else {
+            throw error
+          }
+        }
+      }
     }
 
     return { categoryId: category.id }
@@ -475,25 +523,48 @@ export async function categorizeTransaction(
     })
 
     if (!uncategorized) {
-      // Fetch categories once for color lookup
+      // Double-check for duplicate (case-insensitive)
       const allUserCategories = await prisma.expenseCategory.findMany({
         where: { userId },
-        select: { colorHex: true },
+        select: { id: true, name: true, colorHex: true },
       })
-      const usedColors = allUserCategories
-        .map((c) => c.colorHex)
-        .filter((c): c is string => c !== null && c !== undefined)
-      const nextColor = getNextAvailableColor(usedColors)
-      
-      uncategorized = await prisma.expenseCategory.create({
-        data: {
-          userId,
-          name: 'Uncategorized',
-          type: 'variable',
-          colorHex: nextColor,
-        },
-        select: { id: true },
-      })
+      const duplicateCheck = allUserCategories.find(
+        (cat) => cat.name.toLowerCase() === 'uncategorized'
+      )
+      if (duplicateCheck) {
+        uncategorized = duplicateCheck
+      } else {
+        const usedColors = allUserCategories
+          .map((c) => c.colorHex)
+          .filter((c): c is string => c !== null && c !== undefined)
+        const nextColor = getNextAvailableColor(usedColors)
+        
+        try {
+          uncategorized = await prisma.expenseCategory.create({
+            data: {
+              userId,
+              name: 'Uncategorized',
+              type: 'variable',
+              colorHex: nextColor,
+            },
+            select: { id: true },
+          })
+        } catch (error: any) {
+          // If duplicate constraint error, try to find it again
+          if (error.code === 'P2002') {
+            const found = await prisma.expenseCategory.findFirst({
+              where: {
+                userId,
+                name: { equals: 'Uncategorized', mode: 'insensitive' },
+              },
+              select: { id: true },
+            })
+            if (found) uncategorized = found
+          } else {
+            throw error
+          }
+        }
+      }
     }
 
     return { categoryId: uncategorized.id }

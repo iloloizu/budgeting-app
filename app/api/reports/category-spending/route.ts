@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const userId = searchParams.get('userId')
     const year = searchParams.get('year')
+    const month = searchParams.get('month')
 
     if (!userId || !year) {
       return NextResponse.json(
@@ -16,8 +17,14 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const startDate = new Date(parseInt(year), 0, 1)
-    const endDate = new Date(parseInt(year), 11, 31, 23, 59, 59)
+    // If month is provided, filter to that specific month
+    // Otherwise, filter to the entire year
+    const startDate = month !== null
+      ? new Date(parseInt(year), parseInt(month), 1)
+      : new Date(parseInt(year), 0, 1)
+    const endDate = month !== null
+      ? new Date(parseInt(year), parseInt(month) + 1, 0, 23, 59, 59)
+      : new Date(parseInt(year), 11, 31, 23, 59, 59)
 
     // Use aggregation for better performance - O(n) single pass
     const transactions = await prisma.transaction.findMany({
@@ -95,6 +102,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       year: parseInt(year),
+      month: month !== null ? parseInt(month) : null,
       totalExpenses: roundCurrency(totalExpenses),
       categories: result.sort((a, b) => b.totalSpent - a.totalSpent),
     })

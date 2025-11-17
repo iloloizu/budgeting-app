@@ -16,14 +16,15 @@ model User {
   email     String   @unique
   createdAt DateTime @default(now())
 
-  incomeSources    IncomeSource[]
-  expenseCategories ExpenseCategory[]
-  monthlyBudgets   MonthlyBudget[]
-  transactions     Transaction[]
+  incomeSources       IncomeSource[]
+  expenseCategories   ExpenseCategory[]
+  monthlyBudgets      MonthlyBudget[]
+  transactions        Transaction[]
   categorizationRules CategorizationRule[]
-  tellerEnrollments TellerEnrollment[]
-  tellerAccounts   TellerAccount[]
-  netWorthSnapshots NetWorthSnapshot[]
+  tellerEnrollments   TellerEnrollment[]
+  tellerAccounts      TellerAccount[]
+  netWorthSnapshots   NetWorthSnapshot[]
+  expenseBuckets      ExpenseBucket[]
 }
 
 model IncomeSource {
@@ -31,84 +32,121 @@ model IncomeSource {
   userId    String
   name      String
   amount    Float
-  type      String   // "salary", "bonus", "freelance", "other"
+  type      String // "salary", "bonus", "freelance", "other"
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions        Transaction[]
   categorizationRules CategorizationRule[]
+
+  @@unique([userId, name])
 }
 
 model ExpenseCategory {
   id        String   @id @default(cuid())
   userId    String
   name      String
-  type      String   // "fixed" | "variable"
-  colorHex  String?  // Pastel color hex code
+  type      String // "fixed" | "variable"
+  colorHex  String? // Pastel color hex code
   createdAt DateTime @default(now())
 
-  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  budgetLineItems BudgetLineItem[]
-  transactions    Transaction[]
+  user                User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budgetLineItems     BudgetLineItem[]
+  transactions        Transaction[]
   categorizationRules CategorizationRule[]
+  bucketCategories    ExpenseBucketCategory[]
+
+  @@unique([userId, name])
 }
 
 model MonthlyBudget {
-  id                  String   @id @default(cuid())
-  userId              String
-  year                Int
-  month               Int
-  totalPlannedIncome  Float    @default(0)
-  totalPlannedExpenses Float   @default(0)
-  totalPlannedSavings Float    @default(0)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  userId               String
+  year                 Int
+  month                Int
+  totalPlannedIncome   Float    @default(0)
+  totalPlannedExpenses Float    @default(0)
+  totalPlannedSavings  Float    @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   budgetLineItems BudgetLineItem[]
 
   @@unique([userId, year, month])
 }
 
 model BudgetLineItem {
-  id               String   @id @default(cuid())
-  monthlyBudgetId  String
+  id                String @id @default(cuid())
+  monthlyBudgetId   String
   expenseCategoryId String
-  plannedAmount    Float
+  plannedAmount     Float
 
-  monthlyBudget   MonthlyBudget  @relation(fields: [monthlyBudgetId], references: [id], onDelete: Cascade)
+  monthlyBudget   MonthlyBudget   @relation(fields: [monthlyBudgetId], references: [id], onDelete: Cascade)
   expenseCategory ExpenseCategory @relation(fields: [expenseCategoryId], references: [id], onDelete: Cascade)
 
   @@unique([monthlyBudgetId, expenseCategoryId])
 }
 
-model Transaction {
-  id               String   @id @default(cuid())
-  userId           String
-  date             DateTime
-  description      String
-  amount           Float
-  type             String   // "income" | "expense"
-  incomeSourceId   String?
-  expenseCategoryId String?
-  fingerprint      String?  // For deduplication
-  accountName      String?
-  accountNumber    String?
-  institutionName  String?
-  merchantName     String?  // Original merchant name from CSV
-  // Additional CSV fields
-  originalDate     DateTime? // Original Date from CSV
-  accountType      String?   // Account Type from CSV
-  customName       String?   // Custom Name from CSV
-  note             String?   // Note from CSV
-  ignoredFrom      String?   // Ignored From from CSV
-  taxDeductible    Boolean?  // Tax Deductible from CSV
-  transactionTags  String?   // Transaction Tags from CSV (comma-separated)
-  csvCategory      String?   // Original Category from CSV
+model ExpenseBucket {
+  id         String   @id @default(cuid())
+  userId     String
+  name       String
+  colorHex   String? // Bucket color
+  percentage Float    @default(0) // Percentage of savings allocated to this bucket
+  order      Int      @default(0) // For sorting buckets
+  year       Int
+  month      Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  incomeSource   IncomeSource?  @relation(fields: [incomeSourceId], references: [id], onDelete: SetNull)
+  user             User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bucketCategories ExpenseBucketCategory[]
+
+  @@unique([userId, year, month, name])
+  @@index([userId, year, month])
+}
+
+model ExpenseBucketCategory {
+  id                String @id @default(cuid())
+  bucketId          String
+  expenseCategoryId String
+
+  bucket          ExpenseBucket   @relation(fields: [bucketId], references: [id], onDelete: Cascade)
+  expenseCategory ExpenseCategory @relation(fields: [expenseCategoryId], references: [id], onDelete: Cascade)
+
+  @@unique([bucketId, expenseCategoryId])
+  @@index([bucketId])
+  @@index([expenseCategoryId])
+}
+
+model Transaction {
+  id                String    @id @default(cuid())
+  userId            String
+  date              DateTime
+  description       String
+  amount            Float
+  type              String // "income" | "expense"
+  incomeSourceId    String?
+  expenseCategoryId String?
+  fingerprint       String? // For deduplication
+  accountName       String?
+  accountNumber     String?
+  institutionName   String?
+  merchantName      String? // Original merchant name from CSV
+  // Additional CSV fields
+  originalDate      DateTime? // Original Date from CSV
+  accountType       String? // Account Type from CSV
+  customName        String? // Custom Name from CSV
+  note              String? // Note from CSV
+  ignoredFrom       String? // Ignored From from CSV
+  taxDeductible     Boolean? // Tax Deductible from CSV
+  transactionTags   String? // Transaction Tags from CSV (comma-separated)
+  csvCategory       String? // Original Category from CSV
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incomeSource    IncomeSource?    @relation(fields: [incomeSourceId], references: [id], onDelete: SetNull)
   expenseCategory ExpenseCategory? @relation(fields: [expenseCategoryId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
@@ -126,16 +164,16 @@ model CategorizationRule {
   id             String   @id @default(cuid())
   userId         String
   pattern        String
-  matchType      String   // "exact" | "contains" | "regex"
-  categoryId     String?  // For expenses
-  incomeSourceId String?  // For income
-  appliesTo      String   // "expense" | "income" | "both"
+  matchType      String // "exact" | "contains" | "regex"
+  categoryId     String? // For expenses
+  incomeSourceId String? // For income
+  appliesTo      String // "expense" | "income" | "both"
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category       ExpenseCategory? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  incomeSource   IncomeSource?   @relation(fields: [incomeSourceId], references: [id], onDelete: Cascade)
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category     ExpenseCategory? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  incomeSource IncomeSource?    @relation(fields: [incomeSourceId], references: [id], onDelete: Cascade)
 
   @@index([userId, pattern])
   @@index([userId, appliesTo])
@@ -145,18 +183,18 @@ model CategorizationRule {
 model TellerEnrollment {
   id              String   @id @default(cuid())
   userId          String
-  enrollmentId    String   // Teller's enrollment ID
-  accessToken     String   // Encrypted access token from Teller Connect
+  enrollmentId    String // Teller's enrollment ID
+  accessToken     String // Encrypted access token from Teller Connect
   institutionId   String
   institutionName String
-  status          String   // "active", "disconnected", etc.
+  status          String // "active", "disconnected", etc.
   environment     String   @default("sandbox") // "sandbox", "development", "production"
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accounts        TellerAccount[]
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accounts TellerAccount[]
 
   @@unique([userId, enrollmentId])
   @@index([userId])
@@ -165,19 +203,19 @@ model TellerEnrollment {
 model TellerAccount {
   id              String   @id @default(cuid())
   userId          String
-  enrollmentId    String   // Reference to TellerEnrollment
-  tellerAccountId String   // Teller's account ID
+  enrollmentId    String // Reference to TellerEnrollment
+  tellerAccountId String // Teller's account ID
   institutionId   String
   institutionName String
   name            String
-  type            String   // "depository", "credit", "investment", etc.
+  type            String // "depository", "credit", "investment", etc.
   currency        String   @default("USD")
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  user            User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  enrollment      TellerEnrollment        @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  user            User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enrollment      TellerEnrollment         @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
   accountBalances NetWorthAccountBalance[]
 
   @@unique([userId, tellerAccountId])
@@ -186,17 +224,17 @@ model TellerAccount {
 }
 
 model NetWorthSnapshot {
-  id              String   @id @default(cuid())
-  userId          String
-  year            Int
-  month           Int
-  totalAssets     Float    @default(0)
-  totalLiabilities Float   @default(0)
-  netWorth        Float    @default(0)
-  snapshotDate    DateTime @default(now())
-  createdAt       DateTime @default(now())
+  id               String   @id @default(cuid())
+  userId           String
+  year             Int
+  month            Int
+  totalAssets      Float    @default(0)
+  totalLiabilities Float    @default(0)
+  netWorth         Float    @default(0)
+  snapshotDate     DateTime @default(now())
+  createdAt        DateTime @default(now())
 
-  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
   accountBalances NetWorthAccountBalance[]
 
   @@unique([userId, year, month])
@@ -205,18 +243,17 @@ model NetWorthSnapshot {
 }
 
 model NetWorthAccountBalance {
-  id                String   @id @default(cuid())
-  snapshotId        String
-  tellerAccountId   String?
-  accountName       String
-  institutionName   String
-  accountType       String   // "depository", "credit", "investment", etc.
-  balance           Float
-  isAsset           Boolean  // true for assets, false for liabilities
+  id              String  @id @default(cuid())
+  snapshotId      String
+  tellerAccountId String?
+  accountName     String
+  institutionName String
+  accountType     String // "depository", "credit", "investment", etc.
+  balance         Float
+  isAsset         Boolean // true for assets, false for liabilities
 
-  snapshot          NetWorthSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
-  tellerAccount     TellerAccount?   @relation(fields: [tellerAccountId], references: [id], onDelete: SetNull)
+  snapshot      NetWorthSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  tellerAccount TellerAccount?   @relation(fields: [tellerAccountId], references: [id], onDelete: SetNull)
 
   @@index([snapshotId])
 }
-
