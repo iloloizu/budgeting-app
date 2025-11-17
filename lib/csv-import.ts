@@ -410,9 +410,16 @@ export async function learnCategoryRule(
   if (existingGeneric || existingByPattern) {
     const existing = existingGeneric || existingByPattern
     
+    // Explicit null check - TypeScript needs this to narrow the type
+    if (!existing) {
+      // This should never happen, but TypeScript needs the check
+      return
+    }
+    
     // Don't update to "Uncategorized" or "N/A" - keep existing category if new one is invalid
-    let finalCategoryId = categoryId || existing.categoryId
-    if (finalCategoryId && finalCategoryId !== existing.categoryId) {
+    // Use optional chaining to safely access existing.categoryId
+    let finalCategoryId: string | null = categoryId || existing?.categoryId || null
+    if (finalCategoryId && finalCategoryId !== existing?.categoryId) {
       const newCategory = await prisma.expenseCategory.findUnique({
         where: { id: finalCategoryId },
         select: { name: true },
@@ -420,7 +427,7 @@ export async function learnCategoryRule(
       
       if (newCategory && (newCategory.name.toLowerCase() === 'uncategorized' || newCategory.name.toLowerCase() === 'n/a')) {
         // Keep the existing category instead of updating to uncategorized
-        finalCategoryId = existing.categoryId
+        finalCategoryId = existing?.categoryId || null
       }
     }
     
