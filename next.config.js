@@ -9,6 +9,12 @@ const nextConfig = {
   // - Railway
   // - AWS Amplify
   // GitHub Pages only supports static sites and cannot host API routes
+
+  // Environment-aware configuration
+  // The app automatically detects the environment:
+  // - Local: http://localhost:3000 (when running `npm run dev`)
+  // - Production: https://fortiswealth.netlify.app (when deployed to Netlify)
+  // All API routes use relative paths (/api/...) so they work in both environments
 }
 
 module.exports = nextConfig

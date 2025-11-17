@@ -45,6 +45,42 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Verify user exists before proceeding
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true },
+      })
+
+      if (!user) {
+        console.error(`User not found: ${userId}`)
+        // List available users for debugging
+        const allUsers = await prisma.user.findMany({
+          select: { id: true, name: true, email: true },
+          take: 10,
+        })
+        console.error('Available users:', allUsers)
+        
+        return NextResponse.json(
+          { 
+            error: 'User not found', 
+            message: `User with ID "${userId}" does not exist in the database. Please ensure you're logged in with a valid user account.`,
+            availableUsers: allUsers.map(u => ({ id: u.id, name: u.name, email: u.email }))
+          },
+          { status: 404 }
+        )
+      }
+    } catch (userCheckError: any) {
+      console.error('Error checking user:', userCheckError)
+      return NextResponse.json(
+        { 
+          error: 'Database error', 
+          message: `Failed to verify user: ${userCheckError.message || 'Unknown error'}` 
+        },
+        { status: 500 }
+      )
+    }
+
     let parsedTransactions: ParsedTransaction[] = []
 
     if (transactionsJson) {

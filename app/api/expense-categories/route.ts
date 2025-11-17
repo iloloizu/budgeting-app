@@ -82,15 +82,38 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
+    // Check if category is "Uncategorized" or "N/A" - don't allow deletion
+    const category = await prisma.expenseCategory.findUnique({
+      where: { id },
+      select: { name: true },
+    })
+
+    if (category && (category.name.toLowerCase() === 'uncategorized' || category.name.toLowerCase() === 'n/a')) {
+      return NextResponse.json(
+        { error: 'Cannot delete "Uncategorized" or "N/A" categories' },
+        { status: 400 }
+      )
+    }
+
+    // Delete the category - cascading deletes will handle related rules and transactions
     await prisma.expenseCategory.delete({
       where: { id },
     })
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting expense category:', error)
+    
+    // Handle foreign key constraint errors
+    if (error.code === 'P2003') {
+      return NextResponse.json(
+        { error: 'Cannot delete category: it is still being used by transactions or budgets. Please reassign them first.' },
+        { status: 400 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to delete expense category' },
+      { error: 'Failed to delete expense category', message: error.message },
       { status: 500 }
     )
   }

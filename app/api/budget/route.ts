@@ -94,28 +94,55 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Delete existing line items
-    await prisma.budgetLineItem.deleteMany({
-      where: { monthlyBudgetId: budget.id },
-    })
-
-    // Create new line items
+    // Delete existing line items and create new ones in a transaction
     if (budgetLineItems && Array.isArray(budgetLineItems)) {
-      await prisma.budgetLineItem.createMany({
-        data: budgetLineItems.map((item: any) => ({
-          monthlyBudgetId: budget.id,
-          expenseCategoryId: item.expenseCategoryId,
-          plannedAmount: roundCurrency(parseFloat(item.plannedAmount || 0)),
-        })),
+      // Use transaction to ensure atomicity
+      await prisma.$transaction([
+        prisma.budgetLineItem.deleteMany({
+          where: { monthlyBudgetId: budget.id },
+        }),
+        prisma.budgetLineItem.createMany({
+          data: budgetLineItems.map((item: any) => ({
+            monthlyBudgetId: budget.id,
+            expenseCategoryId: item.expenseCategoryId,
+            plannedAmount: roundCurrency(parseFloat(item.plannedAmount || 0)),
+          })),
+        }),
+      ])
+    } else {
+      // If no line items, just delete existing ones
+      await prisma.budgetLineItem.deleteMany({
+        where: { monthlyBudgetId: budget.id },
       })
     }
 
+    // Fetch updated budget with only needed fields
     const updatedBudget = await prisma.monthlyBudget.findUnique({
       where: { id: budget.id },
-      include: {
+      select: {
+        id: true,
+        userId: true,
+        year: true,
+        month: true,
+        totalPlannedIncome: true,
+        totalPlannedExpenses: true,
+        totalPlannedSavings: true,
+        createdAt: true,
+        updatedAt: true,
         budgetLineItems: {
-          include: {
-            expenseCategory: true,
+          select: {
+            id: true,
+            monthlyBudgetId: true,
+            expenseCategoryId: true,
+            plannedAmount: true,
+            expenseCategory: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+                colorHex: true,
+              },
+            },
           },
         },
       },

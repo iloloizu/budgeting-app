@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import Navigation from '@/components/Navigation'
+import Modal from '@/components/Modal'
+import { useModal } from '@/hooks/useModal'
+import UserSelector from '@/components/UserSelector'
 import { formatCurrency } from '@/lib/format'
 
 interface PreviewTransaction {
@@ -27,14 +30,50 @@ export default function ImportPage() {
   const [step, setStep] = useState<'upload' | 'preview' | 'complete'>('upload')
   const [expenseCategories, setExpenseCategories] = useState<any[]>([])
   const [incomeSources, setIncomeSources] = useState<any[]>([])
+  const modal = useModal()
   const [editingCategory, setEditingCategory] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const stored = localStorage.getItem('selectedUserId')
     if (stored) {
-      setSelectedUserId(stored)
-      fetchCategories(stored)
+      // Verify the user exists before using it
+      fetch(`/api/users`)
+        .then((res) => res.json())
+        .then((users) => {
+          const userExists = users.some((u: any) => u.id === stored)
+          if (userExists) {
+            setSelectedUserId(stored)
+            fetchCategories(stored)
+          } else {
+            // Invalid userId, clear it and use first available user
+            localStorage.removeItem('selectedUserId')
+            if (users.length > 0) {
+              const firstUser = users[0]
+              setSelectedUserId(firstUser.id)
+              localStorage.setItem('selectedUserId', firstUser.id)
+              fetchCategories(firstUser.id)
+            }
+          }
+        })
+        .catch((error) => {
+          console.error('Error verifying user:', error)
+        })
+    } else {
+      // No user selected, get first available user
+      fetch(`/api/users`)
+        .then((res) => res.json())
+        .then((users) => {
+          if (users.length > 0) {
+            const firstUser = users[0]
+            setSelectedUserId(firstUser.id)
+            localStorage.setItem('selectedUserId', firstUser.id)
+            fetchCategories(firstUser.id)
+          }
+        })
+        .catch((error) => {
+          console.error('Error fetching users:', error)
+        })
     }
   }, [])
 
@@ -172,18 +211,23 @@ export default function ImportPage() {
     }
   }
 
-  useEffect(() => {
-    const stored = localStorage.getItem('selectedUserId')
-    if (!stored && !selectedUserId) {
-      window.location.href = '/'
-    }
-  }, [selectedUserId])
+  // Don't redirect - allow import even without a user initially
+  // The useEffect above will try to get a user automatically
 
+  // Show user selector if no user is selected
   if (!selectedUserId) {
     return (
       <div className="min-h-screen bg-white dark:bg-gray-900">
         <div className="max-w-2xl mx-auto px-4 py-16">
-          <p className="text-black dark:text-white">Redirecting to login...</p>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-black dark:text-white mb-8">Import CSV</h1>
+          <p className="text-black dark:text-white mb-4">Please select a user to import transactions for:</p>
+          <UserSelector 
+            onUserSelect={(userId) => {
+              setSelectedUserId(userId)
+              localStorage.setItem('selectedUserId', userId)
+              fetchCategories(userId)
+            }} 
+          />
         </div>
       </div>
     )
@@ -192,6 +236,17 @@ export default function ImportPage() {
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
       <Navigation selectedUserId={selectedUserId} />
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={modal.closeModal}
+        title={modal.modalOptions.title}
+        message={modal.modalOptions.message}
+        type={modal.modalOptions.type}
+        confirmText={modal.modalOptions.confirmText}
+        cancelText={modal.modalOptions.cancelText}
+        onConfirm={modal.modalOptions.onConfirm}
+        showCancel={modal.modalOptions.showCancel}
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-black dark:text-white mb-4 sm:mb-6 lg:mb-8">Import Transactions (CSV)</h1>
         
@@ -222,7 +277,7 @@ export default function ImportPage() {
             <button
               onClick={() => {
                 navigator.clipboard.writeText(error)
-                alert('Error message copied to clipboard!')
+                modal.showSuccess('Error message copied to clipboard!')
               }}
               className="mt-2 border border-red-600 dark:border-red-500 px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-600 dark:hover:bg-red-700 hover:text-white transition-colors"
             >

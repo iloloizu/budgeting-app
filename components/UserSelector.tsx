@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Modal from './Modal'
+import { useModal } from '@/hooks/useModal'
 
 interface User {
   id: string
@@ -19,6 +21,7 @@ export default function UserSelector({
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const modal = useModal()
 
   useEffect(() => {
     fetchUsers()
@@ -80,11 +83,11 @@ export default function UserSelector({
         setDeleteConfirm(null)
       } else {
         const data = await res.json()
-        alert(data.error || 'Failed to delete user')
+        modal.showError(data.error || 'Failed to delete user')
       }
     } catch (error) {
       console.error('Error deleting user:', error)
-      alert('Failed to delete user')
+      modal.showError('Failed to delete user')
     }
   }
 
@@ -98,6 +101,17 @@ export default function UserSelector({
 
   return (
     <div className="space-y-6">
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={modal.closeModal}
+        title={modal.modalOptions.title}
+        message={modal.modalOptions.message}
+        type={modal.modalOptions.type}
+        confirmText={modal.modalOptions.confirmText}
+        cancelText={modal.modalOptions.cancelText}
+        onConfirm={modal.modalOptions.onConfirm}
+        showCancel={modal.modalOptions.showCancel}
+      />
       <h2 className="text-2xl font-bold text-black dark:text-white mb-4">Select User</h2>
       {users.length > 0 && (
         <div className="space-y-2">
